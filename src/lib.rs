@@ -3,22 +3,16 @@ use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Transform {
-
-}
-
+pub struct Transform {}
 
 /// Perform JSON to JSOn transformation
 pub fn jolt(source: &Value, _transform: &Transform) -> Value {
-
-    return source.clone()
-
+    source.clone()
 }
-
 
 #[cfg(test)]
 mod test {
-   
+
     use serde_json::json;
     use super::*;
 
@@ -30,8 +24,7 @@ mod test {
             "c": "d"
         });
         let result = jolt(&source, &transform);
-        
-        assert_eq!(result, source);
 
+        assert_eq!(result, source);
     }
 }
