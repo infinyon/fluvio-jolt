@@ -1,13 +1,21 @@
+mod spec;
+mod shift;
+
 use serde_json::Value;
 
-use serde::{Deserialize, Serialize};
+use spec::TransformSpec;
+use crate::shift::shift;
+use crate::spec::Operation;
 
-#[derive(Serialize, Deserialize)]
-pub struct Transform {}
-
-/// Perform JSON to JSOn transformation
-pub fn jolt(source: &Value, _transform: &Transform) -> Value {
-    source.clone()
+/// Perform JSON to JSON transformation
+pub fn transform(input: Value, spec: &TransformSpec) -> Value {
+    let mut result = input;
+    for entry in spec.entries() {
+        match entry.operation {
+            Operation::Shift => result = shift(result, &entry.spec),
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -18,13 +26,22 @@ mod test {
 
     #[test]
     fn test_transform() {
-        let transform = Transform {};
+        let spec = TransformSpec::shift(json!({
+            "a": "a_new",
+            "c": "c_new"
+        }));
         let source = json!({
             "a": "b",
             "c": "d"
         });
-        let result = jolt(&source, &transform);
+        let result = transform(source, &spec);
 
-        assert_eq!(result, source);
+        assert_eq!(
+            result,
+            json!({
+                "a_new": "b",
+                "c_new": "d"
+            })
+        );
     }
 }
