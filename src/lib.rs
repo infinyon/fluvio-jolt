@@ -3,9 +3,10 @@ mod shift;
 
 use serde_json::Value;
 
-use spec::TransformSpec;
 use crate::shift::shift;
 use crate::spec::Operation;
+
+pub use spec::TransformSpec;
 
 /// Perform JSON to JSON transformation
 pub fn transform(input: Value, spec: &TransformSpec) -> Value {
@@ -26,10 +27,19 @@ mod test {
 
     #[test]
     fn test_transform() {
-        let spec = TransformSpec::shift(json!({
-            "a": "a_new",
-            "c": "c_new"
-        }));
+        let spec: TransformSpec = serde_json::from_value(json!(
+            [
+                {
+                  "operation": "shift",
+                  "spec": {
+                    "a": "a_new",
+                    "c": "c_new"
+                  }
+                }
+            ]
+        ))
+        .expect("parsed spec");
+
         let source = json!({
             "a": "b",
             "c": "d"

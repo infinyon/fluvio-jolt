@@ -26,13 +26,6 @@ pub(crate) struct SpecIter<'a> {
 }
 
 impl TransformSpec {
-    pub(crate) fn shift(spec: Value) -> Self {
-        Self(vec![SpecEntry {
-            operation: Operation::Shift,
-            spec: Spec(spec),
-        }])
-    }
-
     pub(crate) fn entries(&self) -> impl Iterator<Item = &SpecEntry> {
         self.0.iter()
     }
