@@ -1,6 +1,69 @@
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 
+/// The JSON transformation specification.
+///
+/// Composes a list of operation specifications. Each operation has its own DSL (Domain Specific
+/// Language) in order to facilitate its narrow job.
+///
+/// ```
+/// use fluvio_jolt::TransformSpec;
+///
+/// let spec: TransformSpec =
+/// serde_json::from_str(r#"[
+///     {
+///       "operation": "shift",
+///       "spec": {
+///         "name": "data.name",
+///         "account": "data.account"
+///       }
+///     }
+///   ]"#).unwrap();
+/// ```
+///
+/// ### `Shift` operation
+/// Specifies where the data from the input JSON should be placed in the output JSON, or in other
+/// words, how the input JSON/data should be shifted around to make the output JSON/data.
+///
+/// At a base level, a single `shift` operation is a mapping from an input path to an output path,
+/// similar to the `mv` command in Unix, `mv /var/data /var/backup/data`.
+///
+/// The input path is a JSON tree structure, and the output path is flattened "dot notation" path
+/// notation.
+///
+///  For example, given this simple input JSON:
+///  <pre>
+/// {
+///     "id": 1,
+///     "name": "John Smith",
+///     "account": {
+///         "id": 1000,
+///         "type": "Checking"
+///     }
+/// }
+/// </pre>
+/// A simple spec could be constructed by copying that input, and modifying it to supply an output
+/// path for each piece of data:
+/// <pre>
+/// {
+///     "id": "data.id",
+///     "name": "data.name",
+///     "account": "data.account"
+/// }
+/// </pre>
+/// would produce the following output JSON:
+/// <pre>
+/// {
+///     "data" : {
+///         "id": 1,
+///         "name": "John Smith",
+///         "account": {
+///             "id": 1000,
+///             "type": "Checking"
+///         }
+///     }
+/// }
+/// </pre>
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub struct TransformSpec(Vec<SpecEntry>);
 
