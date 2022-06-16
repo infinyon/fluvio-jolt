@@ -72,7 +72,7 @@ use serde_json::Value;
 /// {
 ///     "phones": {
 ///         "mobile": 01234567,
-///         "country": "US",
+///         "country": "US"
 ///     }
 /// }
 /// </pre>
@@ -81,7 +81,7 @@ use serde_json::Value;
 /// {
 ///     "phones": {
 ///         "mobile": 0000000,
-///         "code": "+1",
+///         "code": "+1"
 ///     }
 /// }
 /// </pre>
@@ -91,12 +91,41 @@ use serde_json::Value;
 ///     "phones": {
 ///         "mobile": 01234567,
 ///         "country": "US",
-///         "code": "+1",
+///         "code": "+1"
 ///     }
 /// }
 /// </pre>
 /// As you can see, the field `mobile` remains not affected while the `code` has a default '+1' value.
 ///
+/// ### `Remove` operation
+/// Removes content from the input JSON.
+/// The spec structure matches the input JSON structure. The value of fields is ignored.
+///
+///  For example, given this simple input JSON:
+///  <pre>
+/// {
+///     "phones": {
+///         "mobile": 01234567,
+///         "country": "US"
+///     }
+/// }
+/// </pre>
+/// you can remove the `country` by the following specification for `remove` operation:
+/// <pre>
+/// {
+///     "phones": {
+///         "country": ""
+///     }
+/// }
+/// </pre>
+/// the output JSON will be:
+/// <pre>
+/// {
+///     "phones": {
+///         "mobile": 01234567
+///     }
+/// }
+/// </pre>
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub struct TransformSpec(Vec<SpecEntry>);
 
@@ -112,6 +141,7 @@ pub(crate) struct SpecEntry {
 pub(crate) enum Operation {
     Shift,
     Default,
+    Remove,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]

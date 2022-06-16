@@ -1,12 +1,14 @@
 mod spec;
 mod shift;
 mod default;
+mod remove;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;
 
 use crate::shift::shift;
 use crate::default::default;
+use crate::remove::remove;
 use crate::spec::Operation;
 
 pub use spec::TransformSpec;
@@ -20,7 +22,7 @@ pub use spec::TransformSpec;
 /// ### Operations
 /// 1. [`shift`](TransformSpec#shift-operation): copy data from the input tree and put it the output tree
 /// 2. [`default`](TransformSpec#default-operation): apply default values to the tree
-/// 3. `remove`: remove data from the tree (not implemented yet)
+/// 3. [`remove`](TransformSpec#remove-operation): remove data from the tree
 ///
 /// For example, if you want to repack your JSON record, you can do the following:
 /// ```
@@ -69,6 +71,7 @@ pub fn transform(input: Value, spec: &TransformSpec) -> Value {
         match entry.operation {
             Operation::Shift => result = shift(result, &entry.spec),
             Operation::Default => result = default(result, &entry.spec),
+            Operation::Remove => result = remove(result, &entry.spec),
         }
     }
     result
@@ -92,12 +95,16 @@ impl<'a> JsonPointer<'a> {
         }
         paths
     }
+
+    fn join_rfc6901(elements: &[&str]) -> String {
+        elements.join("/")
+    }
 }
 
 pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) -> Option<()> {
     let paths = position.elements();
     for i in 0..paths.len() - 1 {
-        let ancestor = dest.pointer_mut(paths[0..=i].join("/").as_str())?;
+        let ancestor = dest.pointer_mut(JsonPointer::join_rfc6901(&paths[0..=i]).as_str())?;
         let child_name = paths[i + 1];
         let child_object = if i < paths.len() - 2 {
             Value::Object(Map::new())
@@ -117,8 +124,19 @@ pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) -> Opt
             }
         };
     }
-    let pointer_mut = dest.pointer_mut(paths.join("/").as_str())?;
+    let pointer_mut = dest.pointer_mut(JsonPointer::join_rfc6901(&paths).as_str())?;
     *pointer_mut = val;
+    Some(())
+}
+
+pub(crate) fn delete(dest: &mut Value, position: JsonPointer) -> Option<()> {
+    let mut elements = position.elements();
+    let last = elements.pop()?;
+    if let Some(Value::Object(map)) =
+        dest.pointer_mut(JsonPointer::join_rfc6901(&elements).as_str())
+    {
+        map.remove(last);
+    }
     Some(())
 }
 
@@ -230,6 +248,68 @@ mod test {
                         }
                     }
                 }
+            })
+        );
+    }
+
+    #[test]
+    fn test_delete_empty_pointer() {
+        //given
+        let mut input = json!({
+            "a": "b",
+        });
+
+        //when
+        let _ = delete(&mut input, JsonPointer::Rfc6901(""));
+
+        //then
+        assert_eq!(
+            input,
+            json!({
+                "a": "b",
+            })
+        );
+    }
+
+    #[test]
+    fn test_delete_not_existing() {
+        //given
+        let mut input = json!({
+            "a": "b",
+        });
+
+        //when
+        let _ = delete(&mut input, JsonPointer::Rfc6901("/b"));
+
+        //then
+        assert_eq!(
+            input,
+            json!({
+                "a": "b",
+            })
+        );
+    }
+
+    #[test]
+    fn test_delete() {
+        //given
+        let mut input1 = json!({
+            "a": "b",
+        });
+        let mut input2 = json!({
+            "a": "b",
+            "b": "c",
+        });
+        //when
+        let _ = delete(&mut input1, JsonPointer::Rfc6901("/a"));
+        let _ = delete(&mut input2, JsonPointer::DotNotation("b"));
+
+        //then
+        assert_eq!(input1, json!({}));
+        assert_eq!(
+            input2,
+            json!({
+                "a": "b",
             })
         );
     }

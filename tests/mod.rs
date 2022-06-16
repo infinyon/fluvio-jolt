@@ -13,7 +13,7 @@ struct TestData {
 
 #[test]
 fn test_all() {
-    let tests = ["simple", "shift_and_default"];
+    let tests = ["simple", "shift_and_default", "remove"];
     for name in tests {
         do_test(name);
     }
@@ -32,7 +32,7 @@ fn do_test(name: &str) {
         spec,
         expected,
     } = serde_json::from_reader::<_, TestData>(file)
-        .unwrap_or_else(|_| panic!("existing file for test `{}`", name));
+        .unwrap_or_else(|err| panic!("unable to parse file for test `{}`: {:?}", name, err));
 
     //when
     let result = fluvio_jolt::transform(input, &spec);
