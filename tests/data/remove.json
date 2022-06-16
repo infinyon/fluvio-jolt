@@ -1,0 +1,24 @@
+{
+  "input": {
+    "id": 1,
+    "name": "John Smith",
+    "account": {
+      "id": 1000,
+      "type": "Checking"
+    }
+  },
+
+  "spec": [
+    {
+      "operation": "remove",
+      "spec": {
+        "account": ""
+      }
+    }
+  ],
+
+  "expected": {
+      "id": 1,
+      "name": "John Smith"
+  }
+}

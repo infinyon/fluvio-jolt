@@ -1,6 +1,6 @@
 use serde_json::{Map, Value};
-use serde_json::map::Entry;
 use crate::spec::Spec;
+use crate::{insert, JsonPointer};
 
 pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
     let mut result = Value::Object(Map::new());
@@ -10,39 +10,14 @@ pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
             _ => continue,
         };
         if let Some(input_leaf) = input.pointer_mut(&path) {
-            let _ = insert(&mut result, new_position, input_leaf.take());
+            let _ = insert(
+                &mut result,
+                JsonPointer::DotNotation(new_position),
+                input_leaf.take(),
+            );
         }
     }
     result
-}
-
-fn insert(dest: &mut Value, position: &str, val: Value) -> Option<()> {
-    let mut paths = position.split('.').collect::<Vec<&str>>();
-    paths.insert(0, "");
-    for i in 0..paths.len() - 1 {
-        let ancestor = dest.pointer_mut(paths[0..=i].join("/").as_str())?;
-        let next_name = paths[i + 1];
-        let next_object = if i < paths.len() - 2 {
-            Value::Object(Map::new())
-        } else {
-            Value::Null
-        };
-        match ancestor {
-            Value::Object(ref mut map) => {
-                if let Entry::Vacant(entry) = map.entry(next_name) {
-                    entry.insert(next_object);
-                }
-            }
-            other => {
-                let mut map = Map::new();
-                map.insert(next_name.to_string(), next_object);
-                *other = Value::Object(map);
-            }
-        };
-    }
-    let pointer_mut = dest.pointer_mut(paths.join("/").as_str())?;
-    *pointer_mut = val;
-    Some(())
 }
 
 #[cfg(test)]
@@ -52,74 +27,68 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_insert_object_to_empty() {
+    fn test_empty_spec() {
         //given
-        let mut empty_dest = Value::Null;
-        let value = json!({
-            "a": "b",
-        });
+        let spec: Spec = serde_json::from_value(json!({})).expect("parsed spec");
 
-        let result = insert(&mut empty_dest, "new", value);
+        let input: Value = serde_json::from_value(json!({
+            "b" : "b",
+            "c" : "c"
+        }))
+        .expect("parsed spec");
 
-        assert!(result.is_some());
-        assert_eq!(
-            empty_dest,
-            json!({
-                "new": {
-                    "a": "b"
-                }
-            })
-        );
+        //when
+        let output = shift(input, &spec);
+
+        //then
+        assert_eq!(output, json!({}))
     }
 
     #[test]
-    fn test_insert_object_to_non_empty() {
+    fn test_move_not_present_value() {
         //given
-        let mut empty_dest = json!({
-            "b": "bb",
-            "c": "cc",
-        });
-        let value = json!({
-            "a": "b",
-        });
+        let spec: Spec = serde_json::from_value(json!({
+            "c" : "c"
+        }))
+        .expect("parsed spec");
 
-        let result = insert(&mut empty_dest, "new", value);
+        let input: Value = serde_json::from_value(json!({
+            "a" : "a",
+            "b" : "b"
+        }))
+        .expect("parsed spec");
 
-        assert!(result.is_some());
-        assert_eq!(
-            empty_dest,
-            json!({
-                "b": "bb",
-                "c": "cc",
-                "new": {
-                    "a": "b"
-                }
-            })
-        );
+        //when
+        let output = shift(input, &spec);
+
+        //then
+        assert_eq!(output, json!({}))
     }
 
     #[test]
-    fn test_insert_object_to_empty_non_root() {
+    fn test_move() {
         //given
-        let mut empty_dest = Value::Null;
-        let value = json!({
-            "a": "b",
-        });
+        let spec: Spec = serde_json::from_value(json!({
+            "c" : "new_c"
+        }))
+        .expect("parsed spec");
 
-        let result = insert(&mut empty_dest, "level1.level2.new", value);
+        let input: Value = serde_json::from_value(json!({
+            "a" : "a",
+            "b" : "b",
+            "c" : "c",
+        }))
+        .expect("parsed spec");
 
-        assert!(result.is_some());
+        //when
+        let output = shift(input, &spec);
+
+        //then
         assert_eq!(
-            empty_dest,
+            output,
             json!({
-                "level1": {
-                    "level2": {
-                        "new": {
-                            "a": "b"
-                        }
-                    }
-                }
+                "new_c": "c"
             })
-        );
+        )
     }
 }
