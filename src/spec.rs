@@ -64,6 +64,39 @@ use serde_json::Value;
 ///     }
 /// }
 /// </pre>
+/// ### `Default` operation
+/// Applies default values if the value is not present in the input JSON.
+///
+///  For example, given this simple input JSON:
+///  <pre>
+/// {
+///     "phones": {
+///         "mobile": 01234567,
+///         "country": "US",
+///     }
+/// }
+/// </pre>
+/// with the following specification for `default` operation:
+/// <pre>
+/// {
+///     "phones": {
+///         "mobile": 0000000,
+///         "code": "+1",
+///     }
+/// }
+/// </pre>
+/// the output JSON will be:
+/// <pre>
+/// {
+///     "phones": {
+///         "mobile": 01234567,
+///         "country": "US",
+///         "code": "+1",
+///     }
+/// }
+/// </pre>
+/// As you can see, the field `mobile` remains not affected while the `code` has a default '+1' value.
+///
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub struct TransformSpec(Vec<SpecEntry>);
 
@@ -78,6 +111,7 @@ pub(crate) struct SpecEntry {
 #[non_exhaustive]
 pub(crate) enum Operation {
     Shift,
+    Default,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]

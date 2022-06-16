@@ -13,7 +13,7 @@ struct TestData {
 
 #[test]
 fn test_all() {
-    let tests = ["simple"];
+    let tests = ["simple", "shift_and_default"];
     for name in tests {
         do_test(name);
     }
