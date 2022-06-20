@@ -1,11 +1,11 @@
 use serde_json::Value;
-use crate::{insert, JsonPointer};
+use crate::insert;
 use crate::spec::Spec;
 
 pub(crate) fn default(mut input: Value, spec: &Spec) -> Value {
     for (path, leaf) in spec.iter() {
-        if input.pointer(&path).is_none() {
-            let _ = insert(&mut input, JsonPointer::Rfc6901(&path), leaf.clone());
+        if input.pointer(&path.join_rfc6901()).is_none() {
+            let _ = insert(&mut input, path, leaf.clone());
         }
     }
     input

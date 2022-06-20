@@ -1,11 +1,11 @@
 use serde_json::Value;
-use crate::{JsonPointer, delete};
+use crate::delete;
 use crate::spec::Spec;
 
 pub(crate) fn remove(mut input: Value, spec: &Spec) -> Value {
     for (path, _) in spec.iter() {
-        if input.pointer(&path).is_some() {
-            let _ = delete(&mut input, JsonPointer::Rfc6901(&path));
+        if input.pointer(&path.join_rfc6901()).is_some() {
+            let _ = delete(&mut input, &path);
         }
     }
     input

@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use crate::JsonPointer;
 
 /// The JSON transformation specification.
 ///
@@ -64,6 +65,84 @@ use serde_json::Value;
 ///     }
 /// }
 /// </pre>
+/// #### Wildcards
+/// The `shift` specification on the keys level supports wildcards and conditions:  
+///     1. `*` - match everything  
+///     2. `name1|name2|nameN` - match any of the specified names
+///
+/// `&` lookup allows referencing the values captured by the `*` or `|`.  
+/// It allows for specs to be more compact. For example, for this input:
+///  <pre>
+/// {
+///     "id": 1,
+///     "name": "John Smith",
+///     "account": {
+///         "id": 1000,
+///         "type": "Checking"
+///     }
+/// }
+/// </pre>
+/// to get the output:
+/// <pre>
+/// {
+///     "data" : {
+///         "id": 1,
+///         "name": "John Smith",
+///         "account": {
+///             "id": 1000,
+///             "type": "Checking"
+///         }
+///     }
+/// }
+/// </pre>
+/// the spec with wildcards would be:
+/// <pre>
+/// {
+///     "*": "data.&0"
+/// }
+/// </pre>
+/// If you want only `id` and `name` in the output, the spec is:
+/// <pre>
+/// {
+///     "id|name": "data.&0"
+/// }
+/// </pre>
+///
+///
+/// `&` wildcard also allows to dereference any level of the path of given node:
+/// <pre>
+/// {
+///     "foo": {
+///         "bar" : {
+///             "baz": "new_location.&0.&1.&2" // &0 = baz, &1 = bar, &2 = foo
+///             }
+///         }
+///     }
+/// }
+/// </pre>
+/// for the input:
+/// <pre>
+/// {
+///     "foo": {
+///       "bar": {
+///         "baz": "value"
+///       }
+///     }
+///   }
+/// </pre>
+/// will produce:
+/// <pre>
+/// {
+///     "new_location": {
+///       "baz": {
+///         "bar": {
+///           "foo": "value"
+///         }
+///       }
+///     }
+/// }
+/// </pre>
+///
 /// ### `Default` operation
 /// Applies default values if the value is not present in the input JSON.
 ///
@@ -173,7 +252,7 @@ impl<'a> SpecIter<'a> {
 }
 
 impl<'a> Iterator for SpecIter<'a> {
-    type Item = (String, &'a Value);
+    type Item = (JsonPointer, &'a Value);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -192,10 +271,10 @@ impl<'a> Iterator for SpecIter<'a> {
                     }
                 }
                 other => {
-                    let mut path: Vec<&str> =
-                        self.path.iter().map(|(_, _, path)| path.as_str()).collect();
-                    path.push(name.as_str());
-                    return Some((path.join("/"), other));
+                    let mut path: Vec<String> =
+                        self.path.iter().map(|(_, _, path)| path.clone()).collect();
+                    path.push(name);
+                    return Some((JsonPointer::new(path), other));
                 }
             };
         }
@@ -261,7 +340,7 @@ mod test {
         let items_vec = spec_entry
             .spec
             .iter()
-            .map(|(path, item)| format!("{}:{}", path, item))
+            .map(|(path, item)| format!("{}:{}", path.join_rfc6901(), item))
             .collect::<Vec<String>>();
         assert_eq!(
             items_vec,

@@ -1,0 +1,30 @@
+{
+  "input": {
+    "id": 1,
+    "name": "John Smith",
+    "account": {
+      "id": 1000,
+      "type": "Checking"
+    }
+  },
+
+  "spec": [
+    {
+      "operation": "shift",
+      "spec": {
+        "*": "__data.&0"
+      }
+    }
+  ],
+
+  "expected": {
+    "__data" : {
+      "id": 1,
+      "name": "John Smith",
+      "account": {
+        "id": 1000,
+        "type": "Checking"
+      }
+    }
+  }
+}

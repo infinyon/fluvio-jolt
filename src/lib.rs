@@ -2,6 +2,7 @@ mod spec;
 mod shift;
 mod default;
 mod remove;
+mod pointer;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;
@@ -12,6 +13,7 @@ use crate::remove::remove;
 use crate::spec::Operation;
 
 pub use spec::TransformSpec;
+use crate::pointer::JsonPointer;
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///
@@ -77,65 +79,27 @@ pub fn transform(input: Value, spec: &TransformSpec) -> Value {
     result
 }
 
-pub(crate) enum JsonPointer<'a> {
-    DotNotation(&'a str),
-    Rfc6901(&'a str),
-}
-
-impl<'a> JsonPointer<'a> {
-    /// Returns path elements of the pointer. First element is always empty string that corresponds
-    /// to root level.
-    fn elements(&self) -> Vec<&str> {
-        let mut paths: Vec<&str> = match self {
-            JsonPointer::DotNotation(str) => str.split('.').collect(),
-            JsonPointer::Rfc6901(str) => str.split('/').collect(),
-        };
-        if paths.get(0).filter(|p| (**p).eq("")).is_none() {
-            paths.insert(0, "");
-        }
-        paths
-    }
-
-    fn join_rfc6901(elements: &[&str]) -> String {
-        elements.join("/")
-    }
-}
-
-pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) -> Option<()> {
-    let paths = position.elements();
-    for i in 0..paths.len() - 1 {
-        let ancestor = dest.pointer_mut(JsonPointer::join_rfc6901(&paths[0..=i]).as_str())?;
-        let child_name = paths[i + 1];
-        let child_object = if i < paths.len() - 2 {
-            Value::Object(Map::new())
-        } else {
-            Value::Null
-        };
-        match ancestor {
-            Value::Object(ref mut map) => {
-                if let Entry::Vacant(entry) = map.entry(child_name) {
-                    entry.insert(child_object);
+pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) {
+    let elements = position.iter();
+    let folded = elements
+        .skip(1)
+        .try_fold(dest, |target, token| match target {
+            Value::Object(map) => {
+                if let Entry::Vacant(entry) = map.entry(token) {
+                    entry.insert(Value::Object(Map::new()));
                 }
+                map.get_mut(token)
             }
-            other => {
-                let mut map = Map::new();
-                map.insert(child_name.to_string(), child_object);
-                *other = Value::Object(map);
-            }
-        };
+            _ => None,
+        });
+    if let Some(pointer_mut) = folded {
+        *pointer_mut = val;
     }
-    let pointer_mut = dest.pointer_mut(JsonPointer::join_rfc6901(&paths).as_str())?;
-    *pointer_mut = val;
-    Some(())
 }
 
-pub(crate) fn delete(dest: &mut Value, position: JsonPointer) -> Option<()> {
-    let mut elements = position.elements();
-    let last = elements.pop()?;
-    if let Some(Value::Object(map)) =
-        dest.pointer_mut(JsonPointer::join_rfc6901(&elements).as_str())
-    {
-        map.remove(last);
+pub(crate) fn delete(dest: &mut Value, position: &JsonPointer) -> Option<()> {
+    if let Some(Value::Object(map)) = dest.pointer_mut(position.parent().join_rfc6901().as_str()) {
+        map.remove(position.leaf_name());
     }
     Some(())
 }
@@ -179,14 +143,17 @@ mod test {
     #[test]
     fn test_insert_object_to_empty() {
         //given
-        let mut empty_dest = Value::Null;
+        let mut empty_dest = Value::Object(Map::new());
         let value = json!({
             "a": "b",
         });
 
-        let result = insert(&mut empty_dest, JsonPointer::DotNotation("new"), value);
+        insert(
+            &mut empty_dest,
+            JsonPointer::from_dot_notation("new"),
+            value,
+        );
 
-        assert!(result.is_some());
         assert_eq!(
             empty_dest,
             json!({
@@ -208,9 +175,12 @@ mod test {
             "a": "b",
         });
 
-        let result = insert(&mut empty_dest, JsonPointer::DotNotation("new"), value);
+        insert(
+            &mut empty_dest,
+            JsonPointer::from_dot_notation("new"),
+            value,
+        );
 
-        assert!(result.is_some());
         assert_eq!(
             empty_dest,
             json!({
@@ -226,18 +196,17 @@ mod test {
     #[test]
     fn test_insert_object_to_empty_non_root() {
         //given
-        let mut empty_dest = Value::Null;
+        let mut empty_dest = Value::Object(Map::new());
         let value = json!({
             "a": "b",
         });
 
-        let result = insert(
+        insert(
             &mut empty_dest,
-            JsonPointer::DotNotation("level1.level2.new"),
+            JsonPointer::from_dot_notation("level1.level2.new"),
             value,
         );
 
-        assert!(result.is_some());
         assert_eq!(
             empty_dest,
             json!({
@@ -260,7 +229,7 @@ mod test {
         });
 
         //when
-        let _ = delete(&mut input, JsonPointer::Rfc6901(""));
+        let _ = delete(&mut input, &JsonPointer::from_dot_notation(""));
 
         //then
         assert_eq!(
@@ -279,7 +248,7 @@ mod test {
         });
 
         //when
-        let _ = delete(&mut input, JsonPointer::Rfc6901("/b"));
+        let _ = delete(&mut input, &JsonPointer::from_dot_notation(".b"));
 
         //then
         assert_eq!(
@@ -301,8 +270,8 @@ mod test {
             "b": "c",
         });
         //when
-        let _ = delete(&mut input1, JsonPointer::Rfc6901("/a"));
-        let _ = delete(&mut input2, JsonPointer::DotNotation("b"));
+        let _ = delete(&mut input1, &JsonPointer::from_dot_notation(".a"));
+        let _ = delete(&mut input2, &JsonPointer::from_dot_notation("b"));
 
         //then
         assert_eq!(input1, json!({}));
