@@ -1,0 +1,37 @@
+{
+  "input": {
+    "name": "John Smith",
+    "account": {
+      "id": 1000,
+      "type": "Checking"
+    },
+    "secondary_account": {
+      "id": 1001,
+      "type": "Checking"
+    }
+  },
+
+  "spec": [
+    {
+      "operation": "shift",
+      "spec": {
+        "name": "__data.name",
+        "*": "__data.&0"
+      }
+    }
+  ],
+
+  "expected": {
+    "__data" : {
+      "name": "John Smith",
+      "account": {
+        "id": 1000,
+        "type": "Checking"
+      },
+      "secondary_account": {
+        "id": 1001,
+        "type": "Checking"
+      }
+    }
+  }
+}

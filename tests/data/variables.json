@@ -1,0 +1,30 @@
+{
+  "input": {
+    "foo": {
+      "bar": {
+        "baz": "value"
+      }
+    }
+  },
+  "spec": [
+    {
+      "operation": "shift",
+      "spec": {
+        "foo": {
+          "bar": {
+            "baz": "new_location.&0.&1.&2"
+          }
+        }
+      }
+    }
+  ],
+  "expected": {
+    "new_location": {
+      "baz": {
+        "bar": {
+          "foo": "value"
+        }
+      }
+    }
+  }
+}

@@ -13,7 +13,15 @@ struct TestData {
 
 #[test]
 fn test_all() {
-    let tests = ["simple", "shift_and_default", "remove"];
+    let tests = [
+        "simple",
+        "shift_and_default",
+        "remove",
+        "shift_wildcards",
+        "simple_wildcards",
+        "shift_with_or_condition",
+        "variables",
+    ];
     for name in tests {
         do_test(name);
     }
