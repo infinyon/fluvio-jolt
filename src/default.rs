@@ -5,7 +5,7 @@ use crate::spec::Spec;
 pub(crate) fn default(mut input: Value, spec: &Spec) -> Value {
     for (path, leaf) in spec.iter() {
         if input.pointer(&path.join_rfc6901()).is_none() {
-            let _ = insert(&mut input, path, leaf.clone());
+            insert(&mut input, path, leaf.clone());
         }
     }
     input

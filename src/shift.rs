@@ -14,7 +14,7 @@ pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
             bindings.reverse();
             let mut new_position = target_position.clone();
             new_position.substitute_vars(&bindings);
-            let _ = insert(&mut result, new_position, input_leaf.take());
+            insert(&mut result, new_position, input_leaf.take());
             let _ = delete(&mut input, &input_pointer);
         }
     }
