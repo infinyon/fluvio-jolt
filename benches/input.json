@@ -1,0 +1,27 @@
+{
+  "_id": "5973782bdb9a930533b05cb2",
+  "isActive": true,
+  "balance": "$1,446.35",
+  "age": 32,
+  "eyeColor": "green",
+  "name": "John Smith",
+  "gender": "male",
+  "company": "Comp",
+  "email": "test@testmail.com",
+  "phone": "+1 (952) 533-0000",
+  "friends": [
+    {
+      "id": 0,
+      "name": "Colon Salazar"
+    },
+    {
+      "id": 1,
+      "name": "French Mcneil"
+    },
+    {
+      "id": 2,
+      "name": "Carol Martin"
+    }
+  ],
+  "favoriteFruit": "banana"
+}

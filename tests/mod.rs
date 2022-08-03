@@ -21,6 +21,7 @@ fn test_all() {
         "simple_wildcards",
         "shift_with_or_condition",
         "variables",
+        "from_benchmark",
     ];
     for name in tests {
         do_test(name);
