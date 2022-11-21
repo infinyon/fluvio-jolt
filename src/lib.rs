@@ -93,8 +93,20 @@ pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) {
             _ => None,
         });
     if let Some(pointer_mut) = folded {
-        *pointer_mut = val;
+        merge(pointer_mut, val);
     }
+}
+
+/// Merge one `Value` node into another if they are both `Value::Object`, otherwise overwrite.
+fn merge(dest: &mut Value, new_value: Value) {
+    match (dest, new_value) {
+        (Value::Object(dest), Value::Object(new_value)) => {
+            for (key, value) in new_value.into_iter() {
+                dest.insert(key, value);
+            }
+        }
+        (dest, new_value) => *dest = new_value,
+    };
 }
 
 pub(crate) fn delete(dest: &mut Value, position: &JsonPointer) -> Option<()> {
@@ -167,7 +179,7 @@ mod test {
     #[test]
     fn test_insert_object_to_non_empty() {
         //given
-        let mut empty_dest = json!({
+        let mut dest = json!({
             "b": "bb",
             "c": "cc",
         });
@@ -175,19 +187,42 @@ mod test {
             "a": "b",
         });
 
-        insert(
-            &mut empty_dest,
-            JsonPointer::from_dot_notation("new"),
-            value,
-        );
+        insert(&mut dest, JsonPointer::from_dot_notation("new"), value);
 
         assert_eq!(
-            empty_dest,
+            dest,
             json!({
                 "b": "bb",
                 "c": "cc",
                 "new": {
                     "a": "b"
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_insert_object_merged() {
+        //given
+        let mut dest = json!({
+            "some": {
+                "b": "bb",
+                "c": "cc",
+            }
+        });
+        let value = json!({
+            "a": "b",
+        });
+
+        insert(&mut dest, JsonPointer::from_dot_notation("some"), value);
+
+        assert_eq!(
+            dest,
+            json!({
+                "some": {
+                    "a": "b",
+                    "b": "bb",
+                    "c": "cc",
                 }
             })
         );
