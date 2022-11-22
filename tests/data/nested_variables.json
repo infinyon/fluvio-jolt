@@ -1,0 +1,53 @@
+{
+  "input": {
+    "telemetry": {
+      "metrics": {
+        "common": {
+          "attributes": {
+            "router": "foo",
+            "router2": "foo"
+          }
+        }
+      },
+      "quality": {
+        "value": 3
+      }
+    },
+    "bar": "bar"
+  },
+  "spec": [{
+    "operation": "shift",
+    "spec": {
+      "telemetry": {
+        "metrics": {
+          "common": {
+            "attributes": {
+              "router": "telemetry.metrics.common.attributes.supergraph",
+              "*": "&4.&3.&2.&1.&0"
+            },
+            "*": "&3.&2.&1.&0"
+          },
+          "*": "&2.&1.&0"
+        },
+        "*": "&1.&0"
+      },
+      "*": "&0"
+    }
+  }],
+  "expected": {
+    "telemetry" : {
+      "metrics" : {
+        "common" : {
+          "attributes" : {
+            "supergraph" : "foo",
+            "router2" : "foo"
+          }
+        }
+      },
+      "quality" : {
+        "value" : 3
+      }
+    },
+    "bar" : "bar"
+  }
+}

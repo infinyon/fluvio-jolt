@@ -22,6 +22,7 @@ fn test_all() {
         "shift_with_or_condition",
         "variables",
         "from_benchmark",
+        "nested_variables",
     ];
     for name in tests {
         do_test(name);

@@ -316,7 +316,7 @@ mod test {
     }
 
     #[test]
-    fn test_spec_iter() {
+    fn test_spec_iter_preserves_order() {
         let spec = r#"
         [
             {
@@ -329,7 +329,8 @@ mod test {
                         "country": "ext.country",
                         "city": "ext.city",
                         "phones": ["12345","00000"]
-                    }
+                    },
+                    "*": "&0"
                 }
             }
         ]"#;
@@ -345,13 +346,14 @@ mod test {
         assert_eq!(
             items_vec,
             vec![
-                "/account:\"__data.account\"",
-                "/address/city:\"ext.city\"",
-                "/address/country:\"ext.country\"",
-                "/address/phones/0:\"12345\"",
-                "/address/phones/1:\"00000\"",
                 "/id:\"__data.id\"",
                 "/name:\"__data.name\"",
+                "/account:\"__data.account\"",
+                "/address/country:\"ext.country\"",
+                "/address/city:\"ext.city\"",
+                "/address/phones/0:\"12345\"",
+                "/address/phones/1:\"00000\"",
+                "/*:\"&0\"",
             ]
         );
     }
