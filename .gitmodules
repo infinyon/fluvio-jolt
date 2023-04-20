@@ -1,0 +1,3 @@
+[submodule "jolt-java"]
+	path = jolt-java
+	url = https://github.com/bazaarvoice/jolt
