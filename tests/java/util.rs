@@ -1,12 +1,13 @@
 use std::fs;
-use std::path::Path;
+use std::path::{PathBuf, Path};
 use serde_json::Value as JsonValue;
 
-pub fn for_each_file<F: Fn(JsonValue) -> ()>(dir_path: &Path, f: F) {
+pub fn iter_json(dir_path: &Path) -> Box<dyn Iterator<Item = (PathBuf, JsonValue)>> {
     let dir = fs::read_dir(dir_path).unwrap();
 
-    for entry in dir.into_iter() {
-        let contents = fs::read_to_string(entry.unwrap().path()).unwrap();
+    let iter = dir.into_iter().map(|entry| {
+        let path = entry.unwrap().path();
+        let contents = fs::read_to_string(&path).unwrap();
         let contents = contents
             .split("\n")
             .map(|line| {
@@ -17,6 +18,10 @@ pub fn for_each_file<F: Fn(JsonValue) -> ()>(dir_path: &Path, f: F) {
                 }
             })
             .collect::<String>();
-        f(serde_json::from_str(&contents).unwrap());
-    }
+        let json = serde_json::from_str::<JsonValue>(&contents).unwrap();
+
+        (path.to_owned(), json)
+    });
+
+    Box::new(iter)
 }
