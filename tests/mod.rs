@@ -4,6 +4,8 @@ use serde::Serialize;
 use serde::Deserialize;
 use fluvio_jolt::TransformSpec;
 
+mod java;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct TestData {
     input: Value,
