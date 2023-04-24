@@ -17,13 +17,10 @@ pub Lhs: Lhs = {
     <Key> => Lhs::Key(<>),
 };
 
-pub LhsPipe : Vec<Lhs> = {
-    <mut v:(<Lhs> "|")*> <e:Lhs?> => match e {
-        None => v,
-        Some(e) => {
-            v.push(e);
-            v
-        }
+pub LhsPipe: Vec<Lhs> = {
+    <mut v:(<Lhs> "|")*> <e:Lhs> => {
+        v.push(e);
+        v
     }
 };
 
@@ -37,12 +34,9 @@ pub Rhs: Rhs = {
 };
 
 pub RhsList: Vec<Rhs> = {
-    <mut v:(<Rhs> ".")*> <e:Rhs?> => match e {
-        None => v,
-        Some(e) => {
-            v.push(e);
-            v
-        }
+    <mut v:(<Rhs> ".")*> <e:Rhs> => {
+        v.push(e);
+        v
     }
 };
 
