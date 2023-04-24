@@ -37,8 +37,8 @@ mod lhs_tests {
     #[test]
     fn test_parse_lhs_square() {
         LhsTestCase {
-            expr: "#my123_123key",
-            expected: vec![Lhs::Square("my123_123key".into())],
+            expr: "#my123 _12\n3key",
+            expected: vec![Lhs::Square("my123 _12\n3key".into())],
         }
         .run();
     }
@@ -55,8 +55,8 @@ mod lhs_tests {
     #[test]
     fn test_parse_lhs_key() {
         LhsTestCase {
-            expr: "123my_key123",
-            expected: vec![Lhs::Key("123my_key123".into())],
+            expr: "my123 _12\n3key",
+            expected: vec![Lhs::Key("my123 _12\n3key".into())],
         }
         .run();
     }
