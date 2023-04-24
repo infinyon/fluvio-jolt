@@ -1,4 +1,6 @@
 use crate::expr::ast::{Lhs, Rhs};
+use lalrpop_util::ParseError;
+use std::str::FromStr;
 
 grammar;
 
@@ -21,7 +23,12 @@ match {
     _
 }
 
-Index: usize = IndexLex => <>.parse().unwrap();
+Index: usize = {
+    IndexLex =>? usize::from_str(<>)
+        .map_err(|_| ParseError::User {
+            error: "number is too big"
+        })
+};
 Key: String = KeyLex => <>.to_owned();
 
 pub Lhs: Lhs = {
