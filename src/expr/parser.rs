@@ -1,6 +1,6 @@
 use lalrpop_util::lalrpop_mod;
 
-lalrpop_mod!(pub grammar); // synthesized by LALRPOP
+lalrpop_mod!(#[allow(clippy::all)] pub grammar); // synthesized by LALRPOP
 
 pub use grammar::*;
 
@@ -13,9 +13,9 @@ mod tests {
     fn test_parse_lhs() {
         let lhs = LhsPipeParser::new().parse("qwe*|*qwe*").unwrap();
 
-        assert_eq!(vec![
-            Lhs::RightStar("qwe".into()),
-            Lhs::BothStar("qwe".into()),
-        ], lhs);
+        assert_eq!(
+            vec![Lhs::RightStar("qwe".into()), Lhs::BothStar("qwe".into()),],
+            lhs
+        );
     }
 }
