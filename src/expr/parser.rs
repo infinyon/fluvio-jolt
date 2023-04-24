@@ -1,6 +1,10 @@
 use lalrpop_util::lalrpop_mod;
 
-lalrpop_mod!(#[allow(clippy::all)] pub grammar); // synthesized by LALRPOP
+lalrpop_mod!(
+    #[allow(clippy::all)]
+    #[allow(dead_code)]
+    pub grammar
+);
 
 pub use grammar::*;
 
