@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Lhs {
     Star,
     LeftStar(String),
@@ -10,6 +11,7 @@ pub enum Lhs {
     Square(String),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Rhs {
     Amp(usize, usize),
     IndexLit(usize),

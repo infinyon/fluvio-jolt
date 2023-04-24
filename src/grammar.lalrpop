@@ -3,18 +3,37 @@ use crate::expr::ast::{Lhs, Rhs};
 
 grammar;
 
+match {
+    "&",
+    "#",
+    "@",
+    "(",
+    ")",
+    "[",
+    "]",
+    "$",
+    "*",
+    "|",
+    ".",
+    ",",
+    r"[0-9]+" => Index,
+} else {
+    r"\w+" => Key,
+    _
+}
+
 pub Lhs: Lhs = {
     "&" => Lhs::Amp(0, 0),
-    "&(" <n0:Index> "," <n1:Index> ")" => Lhs::Amp(n0, n1),
+    "&(" <n0:Index> "," <n1:Index> ")" => Lhs::Amp(n0.parse().unwrap(), n1.parse().unwrap()),
     "@" => Lhs::At(None),
-    "@(" <n:Index> "," <k:Key> ")" => Lhs::At(Some((n, k))),
-    "#" <Key> => Lhs::Square(<>),
+    "@(" <n:Index> "," <k:Key> ")" => Lhs::At(Some((n.parse().unwrap(), k.to_owned()))),
+    "#" <Key> => Lhs::Square(<>.to_owned()),
     "$" => Lhs::DollarSign,
     "*" => Lhs::Star,
-    "*" <Key> "*" => Lhs::BothStar(<>),
-    "*" <Key> => Lhs::LeftStar(<>),
-    <Key> "*" => Lhs::RightStar(<>),
-    <Key> => Lhs::Key(<>),
+    "*" <Key> "*" => Lhs::BothStar(<>.to_owned()),
+    "*" <Key> => Lhs::LeftStar(<>.to_owned()),
+    <Key> "*" => Lhs::RightStar(<>.to_owned()),
+    <Key> => Lhs::Key(<>.to_owned()),
 };
 
 pub LhsPipe: Vec<Lhs> = {
@@ -26,11 +45,11 @@ pub LhsPipe: Vec<Lhs> = {
 
 pub Rhs: Rhs = {
     "&" => Rhs::Amp(0, 0),
-    "&(" <n0:Index> "," <n1:Index> ")" => Rhs::Amp(n0, n1),
-    "[#" <Index> "]" => Rhs::IndexLit(<>),
-    "[&(" <i0:Index> "," <i1:Index> ")]" => Rhs::IndexAmp(i0, i1),
+    "&(" <n0:Index> "," <n1:Index> ")" => Rhs::Amp(n0.parse().unwrap(), n1.parse().unwrap()),
+    "[#" <Index> "]" => Rhs::IndexLit(<>.parse().unwrap()),
+    "[&(" <i0:Index> "," <i1:Index> ")]" => Rhs::IndexAmp(i0.parse().unwrap(), i1.parse().unwrap()),
     "@" => Rhs::At(None),
-    "@(" <n:Index> "," <k:Key> ")" => Rhs::At(Some((n, k))),
+    "@(" <n:Index> "," <k:Key> ")" => Rhs::At(Some((n.parse().unwrap(), k.to_owned()))),
 };
 
 pub RhsList: Vec<Rhs> = {
@@ -39,6 +58,3 @@ pub RhsList: Vec<Rhs> = {
         v
     }
 };
-
-Key: String = <s:r".*"> => <>.to_owned();
-Index: usize = <Key> => usize::from_str(&<>).unwrap();
