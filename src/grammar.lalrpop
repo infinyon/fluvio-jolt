@@ -31,7 +31,7 @@ Index: usize = {
 };
 Key: String = KeyLex => <>.to_owned();
 
-pub Lhs: Lhs = {
+Lhs: Lhs = {
     "&" => Lhs::Amp(0, 0),
     "&(" <n0:Index> "," <n1:Index> ")" => Lhs::Amp(n0, n1),
     "@" => Lhs::At(None),
@@ -52,7 +52,7 @@ pub LhsPipe: Vec<Lhs> = {
     }
 };
 
-pub Rhs: Rhs = {
+Rhs: Rhs = {
     "&" => Rhs::Amp(0, 0),
     "&(" <n0:Index> "," <n1:Index> ")" => Rhs::Amp(n0, n1),
     "[#" <Index> "]" => Rhs::IndexLit(<>),
