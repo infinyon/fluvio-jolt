@@ -7,6 +7,7 @@ description = "Fluvio JSON to JSON transformation library"
 repository = "https://github.com/infinyon/fluvio-jolt"
 license = "Apache-2.0"
 resolver = "2"
+build = "build.rs"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -17,9 +18,14 @@ crate-type = ['cdylib', 'rlib']
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = {version = "1", features = ["preserve_order"]} 
+lalrpop-util = { version = "0.19", features = ["lexer"] }
+regex = "1"
 
 [dev-dependencies]
 criterion = "0.3"
+
+[build-dependencies]
+lalrpop = "0.19"
 
 [[bench]]
 name = "benchmarks"

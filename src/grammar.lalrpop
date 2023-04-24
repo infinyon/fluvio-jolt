@@ -1,0 +1,50 @@
+use std::str::FromStr;
+use crate::expr::ast::{Lhs, Rhs};
+
+grammar;
+
+pub Lhs: Lhs = {
+    "&" => Lhs::Amp(0, 0),
+    "&(" <n0:Index> "," <n1:Index> ")" => Lhs::Amp(n0, n1),
+    "@" => Lhs::At(None),
+    "@(" <n:Index> "," <k:Key> ")" => Lhs::At(Some((n, k))),
+    "#" <Key> => Lhs::Square(<>),
+    "$" => Lhs::DollarSign,
+    "*" => Lhs::Star,
+    "*" <Key> "*" => Lhs::BothStar(<>),
+    "*" <Key> => Lhs::LeftStar(<>),
+    <Key> "*" => Lhs::RightStar(<>),
+    <Key> => Lhs::Key(<>),
+};
+
+pub LhsPipe : Vec<Lhs> = {
+    <mut v:(<Lhs> "|")*> <e:Lhs?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+pub Rhs: Rhs = {
+    "&" => Rhs::Amp(0, 0),
+    "&(" <n0:Index> "," <n1:Index> ")" => Rhs::Amp(n0, n1),
+    "[#" <Index> "]" => Rhs::IndexLit(<>),
+    "[&(" <i0:Index> "," <i1:Index> ")]" => Rhs::IndexAmp(i0, i1),
+    "@" => Rhs::At(None),
+    "@(" <n:Index> "," <k:Key> ")" => Rhs::At(Some((n, k))),
+};
+
+pub RhsList: Vec<Rhs> = {
+    <mut v:(<Rhs> ".")*> <e:Rhs?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+Key: String = <s:r".*"> => <>.to_owned();
+Index: usize = <Key> => usize::from_str(&<>).unwrap();
