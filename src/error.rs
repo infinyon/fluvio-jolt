@@ -1,8 +1,7 @@
-use std::result::Result as StdResult;
 use thiserror::Error as ThisError;
 
 #[derive(Debug, ThisError)]
-pub enum Error {
+pub enum ParseError {
     #[error("Empty expression.")]
     EmptyExpr,
     #[error("Unexpected character in expression: '{0}'")]
@@ -14,5 +13,3 @@ pub enum Error {
     #[error("Index too large while parsing an expression. Value was: '{0}'")]
     IndexTooLarge(String),
 }
-
-pub type Result<T> = StdResult<T, Error>;

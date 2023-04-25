@@ -17,8 +17,6 @@ use crate::spec::Operation;
 pub use spec::TransformSpec;
 use crate::pointer::JsonPointer;
 
-pub use error::{Error, Result};
-
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///
 /// Inspired by Java library [Jolt](https://github.com/bazaarvoice/jolt).
