@@ -37,11 +37,11 @@ pub struct Rhs(Vec<RhsEntry>);
 pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, String)>),
-    Index(Index),
+    Index(IndexOp),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Index {
+pub enum IndexOp {
     Square(usize),
     Amp(usize, usize),
     Literal(usize),
@@ -83,6 +83,33 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_rhs(&mut self) -> Result<Rhs> {
+        let mut entries = Vec::new();
+
+        loop {
+            let c = self.chars.peek().ok_or(Error::EmptyExpr)?;
+
+            let res = match c {
+                '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
+                '@' => self.parse_at().map(RhsEntry::At),
+                '[' => self.parse_index_op().map(RhsEntry::Index),
+                _ => return Err(Error::UnexpectedCharacter(*c)),
+            }?;
+
+            if let Some(c) = self.chars.next() {
+                if c != '.' {
+                    return Err(Error::UnexpectedCharacter(c));
+                } else {
+                    continue;
+                }
+            } else {
+                break;
+            }
+        }
+
+        Ok(Rhs(entries))
+    }
+
+    fn parse_index_op(&mut self) -> Result<IndexOp> {
         todo!()
     }
 
