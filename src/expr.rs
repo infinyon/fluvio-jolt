@@ -28,7 +28,10 @@ pub enum KeySelection {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Rhs {
+pub struct Rhs(Vec<RhsEntry>);
+
+#[derive(Debug, PartialEq)]
+pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, String)>),
     Index(Index),
