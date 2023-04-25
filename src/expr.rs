@@ -1,8 +1,8 @@
+#![allow(dead_code)]
+
 use crate::error::ParseError as Error;
 use std::str::Chars;
 use std::iter::Peekable;
-use std::ops::Range;
-use std::mem;
 use std::result::Result as StdResult;
 
 type Result<T> = StdResult<T, Error>;
