@@ -38,6 +38,7 @@ pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, String)>),
     Index(IndexOp),
+    Key(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -92,7 +93,7 @@ impl<'input> Parser<'input> {
                 '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
                 '@' => self.parse_at().map(RhsEntry::At),
                 '[' => self.parse_index_op().map(RhsEntry::Index),
-                _ => return Err(Error::UnexpectedCharacter(*c)),
+                _ => self.parse_key().map(RhsEntry::Key),
             }?;
 
             if let Some(c) = self.chars.peek() {
@@ -115,6 +116,21 @@ impl<'input> Parser<'input> {
         }
 
         Ok(Rhs(entries))
+    }
+
+    fn parse_key(&mut self) -> Result<String> {
+        let mut key = String::new();
+
+        while let Some(&c) = self.chars.peek() {
+            if c != '.' && c != '[' {
+                self.assert_next(c)?;
+                key.push(c);
+            } else {
+                break;
+            }
+        }
+
+        Ok(key)
     }
 
     fn parse_index_op(&mut self) -> Result<IndexOp> {
@@ -595,6 +611,31 @@ mod rhs_tests {
             expected: Rhs(vec![
                 RhsEntry::At(Some((0, "qwe".into()))),
                 RhsEntry::Index(IndexOp::Literal(27)),
+            ]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_key() {
+        RhsTestCase {
+            expr: "hello.world",
+            expected: Rhs(vec![
+                RhsEntry::Key("hello".into()),
+                RhsEntry::Key("world".into()),
+            ]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_key_idx_lit() {
+        RhsTestCase {
+            expr: "hello.world[13]",
+            expected: Rhs(vec![
+                RhsEntry::Key("hello".into()),
+                RhsEntry::Key("world".into()),
+                RhsEntry::Index(IndexOp::Literal(13)),
             ]),
         }
         .run();
