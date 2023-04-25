@@ -39,6 +39,7 @@ pub enum RhsEntry {
     At(Option<(usize, String)>),
     Index(IndexOp),
     Key(String),
+    Dot,
 }
 
 #[derive(Debug, PartialEq)]
@@ -86,33 +87,19 @@ impl<'input> Parser<'input> {
     fn parse_rhs(&mut self) -> Result<Rhs> {
         let mut entries = Vec::new();
 
-        loop {
-            let c = self.chars.peek().ok_or(Error::UnexpectedEof)?;
-
+        while let Some(c) = self.chars.peek() {
             let res = match c {
                 '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
                 '@' => self.parse_at().map(RhsEntry::At),
                 '[' => self.parse_index_op().map(RhsEntry::Index),
+                '.' => {
+                    self.assert_next('.')?;
+                    Ok(RhsEntry::Dot)
+                }
                 _ => self.parse_key().map(RhsEntry::Key),
             }?;
 
-            if let Some(c) = self.chars.peek() {
-                match c {
-                    '.' => {
-                        self.assert_next('.')?;
-                        entries.push(res);
-                        continue;
-                    }
-                    '[' => {
-                        entries.push(res);
-                        continue;
-                    }
-                    _ => return Err(Error::UnexpectedCharacter(*c)),
-                }
-            } else {
-                entries.push(res);
-                break;
-            }
+            entries.push(res);
         }
 
         Ok(Rhs(entries))
@@ -122,11 +109,14 @@ impl<'input> Parser<'input> {
         let mut key = String::new();
 
         while let Some(&c) = self.chars.peek() {
-            if c != '.' && c != '[' {
-                self.assert_next(c)?;
-                key.push(c);
-            } else {
-                break;
+            match c {
+                '&' | '@' | '[' | '.' => {
+                    break;
+                }
+                _ => {
+                    self.assert_next(c)?;
+                    key.push(c);
+                }
             }
         }
 
@@ -622,6 +612,7 @@ mod rhs_tests {
             expr: "hello.world",
             expected: Rhs(vec![
                 RhsEntry::Key("hello".into()),
+                RhsEntry::Dot,
                 RhsEntry::Key("world".into()),
             ]),
         }
@@ -634,9 +625,46 @@ mod rhs_tests {
             expr: "hello.world[13]",
             expected: Rhs(vec![
                 RhsEntry::Key("hello".into()),
+                RhsEntry::Dot,
                 RhsEntry::Key("world".into()),
                 RhsEntry::Index(IndexOp::Literal(13)),
             ]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_misc() {
+        RhsTestCase {
+            expr: "photos[&1].id",
+            expected: Rhs(vec![
+                RhsEntry::Key("photos".into()),
+                RhsEntry::Index(IndexOp::Amp(1, 0)),
+                RhsEntry::Dot,
+                RhsEntry::Key("id".into()),
+            ]),
+        }
+        .run();
+        RhsTestCase {
+            expr: "photos[&3].sizes.&1",
+            expected: Rhs(vec![
+                RhsEntry::Key("photos".into()),
+                RhsEntry::Index(IndexOp::Amp(3, 0)),
+                RhsEntry::Dot,
+                RhsEntry::Key("sizes".into()),
+                RhsEntry::Dot,
+                RhsEntry::Amp(1, 0),
+            ]),
+        }
+        .run();
+        RhsTestCase {
+            expr: "This is a review",
+            expected: Rhs(vec![RhsEntry::Key("This is a review".into())]),
+        }
+        .run();
+        RhsTestCase {
+            expr: "rating-&",
+            expected: Rhs(vec![RhsEntry::Key("rating-".into()), RhsEntry::Amp(0, 0)]),
         }
         .run();
     }
