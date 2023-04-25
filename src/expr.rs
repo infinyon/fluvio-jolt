@@ -86,7 +86,7 @@ impl<'input> Parser<'input> {
         let mut entries = Vec::new();
 
         loop {
-            let c = self.chars.peek().ok_or(Error::EmptyExpr)?;
+            let c = self.chars.peek().ok_or(Error::UnexpectedEof)?;
 
             let res = match c {
                 '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
@@ -118,6 +118,7 @@ impl<'input> Parser<'input> {
                     _ => return Err(Error::UnexpectedCharacter(*c)),
                 }
             } else {
+                entries.push(res);
                 break;
             }
         }
@@ -524,6 +525,41 @@ mod lhs_tests {
         LhsTestCase {
             expr: "$(10,12)",
             expected: Lhs::DollarSign(10, 12),
+        }
+        .run();
+    }
+}
+
+#[cfg(test)]
+mod rhs_tests {
+    use super::*;
+
+    struct RhsTestCase<'a> {
+        expr: &'a str,
+        expected: Rhs,
+    }
+
+    impl<'a> RhsTestCase<'a> {
+        pub fn run(&self) {
+            let output = match Rhs::parse(self.expr) {
+                Ok(output) => output,
+                Err(e) => panic!("failed to parse {} as rhs:\n{}", self.expr, e),
+            };
+
+            if output != self.expected {
+                panic!(
+                    "when parsing rhs.\nexpected={:#?}\ngot={:#?}",
+                    self.expected, output
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_rhs_amp_short() {
+        RhsTestCase {
+            expr: "&",
+            expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
         }
         .run();
     }
