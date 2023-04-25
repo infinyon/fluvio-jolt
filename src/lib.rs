@@ -3,8 +3,7 @@ mod shift;
 mod default;
 mod remove;
 mod pointer;
-mod expr;
-mod error;
+mod dsl;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;
