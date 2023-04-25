@@ -307,7 +307,7 @@ impl<'input> Parser<'input> {
         }
 
         if num.is_empty() {
-            return Err(Error::UnexpectedEof);
+            return Err(Error::EmptyNumber);
         }
 
         num.parse().map_err(|_| Error::IndexTooLarge(num))
@@ -560,6 +560,51 @@ mod rhs_tests {
         RhsTestCase {
             expr: "&",
             expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_at_full() {
+        RhsTestCase {
+            expr: "@(0,qwe)",
+            expected: Rhs(vec![RhsEntry::At(Some((0, "qwe".into())))]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_at_idx_square() {
+        RhsTestCase {
+            expr: "@(0,qwe)[#15]",
+            expected: Rhs(vec![
+                RhsEntry::At(Some((0, "qwe".into()))),
+                RhsEntry::Index(IndexOp::Square(15)),
+            ]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_at_idx_amp() {
+        RhsTestCase {
+            expr: "@(0,qwe)[&(1,2)]",
+            expected: Rhs(vec![
+                RhsEntry::At(Some((0, "qwe".into()))),
+                RhsEntry::Index(IndexOp::Amp(1, 2)),
+            ]),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_rhs_at_idx_lit() {
+        RhsTestCase {
+            expr: "@(0,qwe)[27]",
+            expected: Rhs(vec![
+                RhsEntry::At(Some((0, "qwe".into()))),
+                RhsEntry::Index(IndexOp::Literal(27)),
+            ]),
         }
         .run();
     }

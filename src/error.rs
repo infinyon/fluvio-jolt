@@ -12,4 +12,6 @@ pub enum ParseError {
     UnexpectedEof,
     #[error("Index too large while parsing an expression. Value was: '{0}'")]
     IndexTooLarge(String),
+    #[error("Expected a number but got nothing while parsing an expression.")]
+    EmptyNumber,
 }
