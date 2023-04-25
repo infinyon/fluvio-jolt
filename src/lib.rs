@@ -4,6 +4,7 @@ mod default;
 mod remove;
 mod pointer;
 mod expr;
+mod error;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;
@@ -15,6 +16,8 @@ use crate::spec::Operation;
 
 pub use spec::TransformSpec;
 use crate::pointer::JsonPointer;
+
+pub use error::{Error, Result};
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///
