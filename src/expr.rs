@@ -110,7 +110,33 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_index_op(&mut self) -> Result<IndexOp> {
-        todo!()
+        self.assert_next('[')?;
+
+        let c = *self.chars.peek().ok_or(Error::UnexpectedEof)?;
+
+        let op = match c {
+            '#' => {
+                self.assert_next('#')?;
+                let idx = self.parse_index()?;
+                IndexOp::Square(idx)
+            }
+            '&' => {
+                let amp = self.parse_amp()?;
+                IndexOp::Amp(amp.0, amp.1)
+            }
+            _ => {
+                if c.is_ascii_digit() {
+                    let idx = self.parse_index()?;
+                    IndexOp::Literal(idx)
+                } else {
+                    return Err(Error::UnexpectedCharacter(c));
+                }
+            }
+        };
+
+        self.assert_next(']')?;
+
+        Ok(op)
     }
 
     fn parse_square_lhs(&mut self) -> Result<String> {
@@ -261,6 +287,10 @@ impl<'input> Parser<'input> {
             self.assert_next(c)?;
 
             num.push(c);
+        }
+
+        if num.is_empty() {
+            return Err(Error::UnexpectedEof);
         }
 
         num.parse().map_err(|_| Error::IndexTooLarge(num))
