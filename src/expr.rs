@@ -31,7 +31,7 @@ pub enum KeySelection {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Rhs(Vec<RhsEntry>);
+pub struct Rhs(pub Vec<RhsEntry>);
 
 #[derive(Debug, PartialEq)]
 pub enum RhsEntry {
@@ -91,15 +91,27 @@ impl<'input> Parser<'input> {
             let res = match c {
                 '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
                 '@' => self.parse_at().map(RhsEntry::At),
-                '[' => self.parse_index_op().map(RhsEntry::Index),
                 _ => return Err(Error::UnexpectedCharacter(*c)),
             }?;
 
-            if let Some(c) = self.chars.next() {
-                if c != '.' {
-                    return Err(Error::UnexpectedCharacter(c));
-                } else {
-                    continue;
+            if let Some(c) = self.chars.peek() {
+                match c {
+                    '.' => {
+                        entries.push(res);
+                        self.assert_next('.')?;
+                        continue;
+                    }
+                    '[' => {
+                        entries.push(res);
+                        let entry = self.parse_index_op().map(RhsEntry::Index)?;
+                        entries.push(entry);
+                        if self.chars.peek().is_some() {
+                            continue;
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => return Err(Error::UnexpectedCharacter(*c)),
                 }
             } else {
                 break;
