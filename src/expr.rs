@@ -56,7 +56,7 @@ impl<'input> Parser<'input> {
         let c = self.chars.peek().ok_or(Error::EmptyExpr)?;
 
         let res = match c {
-            '#' => self.parse_square().map(Lhs::Square),
+            '#' => self.parse_square_lhs().map(Lhs::Square),
             '@' => self.parse_at().map(Lhs::At),
             '$' => self.parse_dollar_sign().map(|_| Lhs::DollarSign),
             '&' => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
@@ -74,7 +74,7 @@ impl<'input> Parser<'input> {
         todo!()
     }
 
-    fn parse_square(&mut self) -> Result<String> {
+    fn parse_square_lhs(&mut self) -> Result<String> {
         self.assert_next('#')?;
 
         let mut key = String::new();
