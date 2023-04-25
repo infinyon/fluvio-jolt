@@ -6,7 +6,7 @@ use std::mem;
 
 #[derive(Debug, PartialEq)]
 pub enum Lhs {
-    DollarSign,
+    DollarSign(usize, usize),
     Amp(usize, usize),
     At(Option<(usize, String)>),
     Square(String),
@@ -30,9 +30,15 @@ pub enum KeySelection {
 #[derive(Debug, PartialEq)]
 pub enum Rhs {
     Amp(usize, usize),
-    IndexLit(usize),
-    IndexAmp(usize, usize),
     At(Option<(usize, String)>),
+    Index(Index),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Index {
+    Square(usize),
+    Amp(usize, usize),
+    Literal(usize),
 }
 
 impl Rhs {
@@ -58,7 +64,7 @@ impl<'input> Parser<'input> {
         let res = match c {
             '#' => self.parse_square_lhs().map(Lhs::Square),
             '@' => self.parse_at().map(Lhs::At),
-            '$' => self.parse_dollar_sign().map(|_| Lhs::DollarSign),
+            '$' => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             '&' => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
             _ => self.parse_key_selection().map(Lhs::Key),
         }?;
@@ -108,15 +114,19 @@ impl<'input> Parser<'input> {
         Ok(Some((idx, key)))
     }
 
-    fn parse_dollar_sign(&mut self) -> Result<()> {
-        self.assert_next('$')
+    fn parse_dollar_sign(&mut self) -> Result<(usize, usize)> {
+        self.assert_next('$')?;
+        self.parse_amp_or_ds()
     }
 
     fn parse_amp(&mut self) -> Result<(usize, usize)> {
         self.assert_next('&')?;
+        self.parse_amp_or_ds()
+    }
 
-        let c = match self.chars.next() {
-            Some(c) => c,
+    fn parse_amp_or_ds(&mut self) -> Result<(usize, usize)> {
+        let c = match self.chars.peek() {
+            Some(c) => *c,
             None => return Ok((0, 0)),
         };
 
@@ -124,6 +134,7 @@ impl<'input> Parser<'input> {
             let idx = self.parse_index()?;
             Ok((idx, 0))
         } else if c == '(' {
+            self.assert_next('(')?;
             let idx0 = self.parse_index()?;
             self.assert_next(',')?;
             let idx1 = self.parse_index()?;
@@ -267,15 +278,6 @@ mod lhs_tests {
     }
 
     #[test]
-    fn test_parse_lhs_dollar_sign() {
-        LhsTestCase {
-            expr: "$",
-            expected: Lhs::DollarSign,
-        }
-        .run();
-    }
-
-    #[test]
     fn test_parse_lhs_key() {
         LhsTestCase {
             expr: "my123 _12\n3key",
@@ -403,10 +405,46 @@ mod lhs_tests {
     }
 
     #[test]
+    fn test_parse_lhs_amp_medium() {
+        LhsTestCase {
+            expr: "&12",
+            expected: Lhs::Amp(12, 0),
+        }
+        .run();
+    }
+
+    #[test]
     fn test_parse_lhs_amp_full() {
         LhsTestCase {
-            expr: "&(0,1)",
-            expected: Lhs::Amp(0, 1),
+            expr: "&(110,12)",
+            expected: Lhs::Amp(110, 12),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_lhs_dollar_sign_short() {
+        LhsTestCase {
+            expr: "$",
+            expected: Lhs::DollarSign(0, 0),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_lhs_dollar_sign_medium() {
+        LhsTestCase {
+            expr: "$15",
+            expected: Lhs::DollarSign(15, 0),
+        }
+        .run();
+    }
+
+    #[test]
+    fn test_parse_lhs_dollar_sign_full() {
+        LhsTestCase {
+            expr: "$(10,12)",
+            expected: Lhs::DollarSign(10, 12),
         }
         .run();
     }
