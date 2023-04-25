@@ -2,6 +2,7 @@ use crate::{Error, Result};
 use std::str::Chars;
 use std::iter::Peekable;
 use std::ops::Range;
+use std::mem;
 
 #[derive(Debug, PartialEq)]
 pub enum Lhs {
@@ -135,7 +136,75 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_key_selection(&mut self) -> Result<KeySelection> {
-        todo!()
+        enum State {
+            Literal(String),
+            Pipe(String, Vec<String>),
+            Stars(String, Vec<String>),
+        }
+
+        let mut state = State::Literal(String::new());
+
+        for c in self.chars.by_ref() {
+            match c {
+                '*' => match state {
+                    State::Literal(buf) => {
+                        state = State::Stars(String::new(), vec![buf]);
+                    }
+                    State::Pipe(mut buf, bufs) => {
+                        buf.push('*');
+                        state = State::Pipe(buf, bufs);
+                    }
+                    State::Stars(buf, mut bufs) => {
+                        bufs.push(buf);
+                        state = State::Stars(String::new(), bufs);
+                    }
+                },
+                '|' => match state {
+                    State::Literal(buf) => {
+                        state = State::Pipe(String::new(), vec![buf]);
+                    }
+                    State::Pipe(buf, mut bufs) => {
+                        bufs.push(buf);
+                        state = State::Pipe(String::new(), bufs);
+                    }
+                    State::Stars(mut buf, bufs) => {
+                        buf.push('|');
+                        state = State::Stars(buf, bufs);
+                    }
+                },
+                _ => match state {
+                    State::Literal(mut buf) => {
+                        buf.push(c);
+                        state = State::Literal(buf);
+                    }
+                    State::Pipe(mut buf, bufs) => {
+                        buf.push(c);
+                        state = State::Pipe(buf, bufs);
+                    }
+                    State::Stars(mut buf, bufs) => {
+                        buf.push(c);
+                        state = State::Stars(buf, bufs);
+                    }
+                },
+            }
+        }
+
+        Ok(match state {
+            State::Literal(buf) => KeySelection::Literal(buf),
+            State::Pipe(buf, mut bufs) => {
+                bufs.push(buf);
+                KeySelection::Pipe(bufs)
+            }
+            State::Stars(buf, mut bufs) => {
+                bufs.push(buf);
+
+                if bufs.len() == 2 && bufs.iter().all(String::is_empty) {
+                    KeySelection::Star
+                } else {
+                    KeySelection::Stars(bufs)
+                }
+            }
+        })
     }
 
     fn parse_index(&mut self) -> Result<usize> {
