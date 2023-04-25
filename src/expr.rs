@@ -105,8 +105,12 @@ impl<'input> Parser<'input> {
                         entries.push(res);
                         let entry = self.parse_index_op().map(RhsEntry::Index)?;
                         entries.push(entry);
-                        if self.chars.peek().is_some() {
-                            continue;
+                        if let Some(c) = self.chars.next() {
+                            if c == '.' {
+                                continue;
+                            } else {
+                                return Err(Error::UnexpectedCharacter(c));
+                            }
                         } else {
                             break;
                         }
