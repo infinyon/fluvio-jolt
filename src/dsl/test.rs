@@ -361,6 +361,50 @@ fn test_parse_rhs_misc() {
         ]),
     }
     .run();
+    RhsTestCase {
+        expr: "9876",
+        expected: Rhs(vec![RhsEntry::Key("9876".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "&[]",
+        expected: Rhs(vec![RhsEntry::Amp(0, 0), RhsEntry::Index(IndexOp::Empty)]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "clients.@(3,clientId)",
+        expected: Rhs(vec![
+            RhsEntry::Key("clients".into()),
+            RhsEntry::Dot,
+            RhsEntry::At(Some((3, "clientId".into()))),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "&1.&3.[]",
+        expected: Rhs(vec![
+            RhsEntry::Amp(1, 0),
+            RhsEntry::Dot,
+            RhsEntry::Amp(3, 0),
+            RhsEntry::Dot,
+            RhsEntry::Index(IndexOp::Empty),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "&",
+        expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "sillyPhotoData.@(captions[1])",
+        expected: Rhs(vec![
+            RhsEntry::Key("sillyPhotoData".into()),
+            RhsEntry::Dot,
+            RhsEntry::At(0, ????????????????????????????????????????)
+        ]),
+    }
+    .run();
 }
 
 #[test]
@@ -403,6 +447,15 @@ fn test_parse_rhs_escape() {
     RhsTestCase {
         expr: "\\#H",
         expected: Rhs(vec![RhsEntry::Key("#H".into())]),
+    }
+    .run();
+}
+
+#[test]
+fn test_parse_rhs_empty() {
+    RhsTestCase {
+        expr: "",
+        expected: Rhs(vec![]),
     }
     .run();
 }

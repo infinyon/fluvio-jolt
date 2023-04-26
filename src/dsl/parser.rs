@@ -215,13 +215,9 @@ impl<'input> Parser<'input> {
         }?;
 
         match &token.kind {
-            TokenKind::Key(key) => {
-                if key.chars().all(|c| c.is_ascii_digit()) {
-                    let idx = self.parse_index()?;
-                    Ok((idx, 0))
-                } else {
-                    Ok((0, 0))
-                }
+            TokenKind::Key(key) if key.chars().all(|c| c.is_ascii_digit()) => {
+                let idx = self.parse_index()?;
+                Ok((idx, 0))
             }
             TokenKind::OpenPrnth => {
                 self.assert_next(TokenKind::OpenPrnth)?;
@@ -232,12 +228,7 @@ impl<'input> Parser<'input> {
 
                 Ok((idx0, idx1))
             }
-            _ => Err(ParseError {
-                pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(
-                    self.input.next().unwrap().unwrap(),
-                )),
-            }),
+            _ => Ok((0, 0)),
         }
     }
 
