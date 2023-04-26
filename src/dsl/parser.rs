@@ -262,10 +262,12 @@ impl<'input> Parser<'input> {
 
                 let token = match self.input.peek() {
                     Some(token) => token?,
-                    None => return Err(ParseError {
-                        pos: 0,
-                        cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-                    }),
+                    None => {
+                        return Err(ParseError {
+                            pos: 0,
+                            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+                        })
+                    }
                 };
                 if token.kind == TokenKind::ClosePrnth {
                     self.assert_next(TokenKind::ClosePrnth)?;

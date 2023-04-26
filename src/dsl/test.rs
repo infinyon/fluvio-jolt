@@ -222,7 +222,7 @@ impl<'a> RhsTestCase<'a> {
 impl From<&str> for Box<Rhs> {
     fn from(s: &str) -> Box<Rhs> {
         Rhs(vec![RhsEntry::Key(s.into())]).into()
-    }    
+    }
 }
 
 #[test]
@@ -416,7 +416,13 @@ fn test_parse_rhs_misc() {
         expected: Rhs(vec![
             RhsEntry::Key("sillyPhotoData".into()),
             RhsEntry::Dot,
-            RhsEntry::At(0, ????????????????????????????????????????)
+            RhsEntry::At(Some((
+                0,
+                Box::new(Rhs(vec![
+                    RhsEntry::Key("captions".into()),
+                    RhsEntry::Index(IndexOp::Literal(1)),
+                ])),
+            ))),
         ]),
     }
     .run();
