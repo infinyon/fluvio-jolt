@@ -352,4 +352,14 @@ fn test_parse_rhs_misc() {
         ]),
     }
     .run();
+    RhsTestCase {
+        expr: "\\[\\]E",
+        expected: Rhs(vec![RhsEntry::Key("[]E".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\@A",
+        expected: Rhs(vec![RhsEntry::Key("@A".into())]),
+    }
+    .run();
 }
