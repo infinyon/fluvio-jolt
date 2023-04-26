@@ -1,5 +1,5 @@
 use super::error::{ParseErrorCause, ParseError};
-use super::token::{TokenKind, Token};
+use super::token::TokenKind;
 use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
 use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, KeySelection};
@@ -52,10 +52,18 @@ impl<'input> Parser<'input> {
                 TokenKind::At => self.parse_at().map(RhsEntry::At),
                 TokenKind::OpenBrkt => self.parse_index_op().map(RhsEntry::Index),
                 TokenKind::Dot => {
-                    self.assert_next('.')?;
+                    self.assert_next(TokenKind::Dot)?;
                     Ok(RhsEntry::Dot)
                 }
-                _ => self.parse_key().map(RhsEntry::Key),
+                TokenKind::Key(key) => Ok(RhsEntry::Key(key)),
+                _ => {
+                    return Err(ParseError {
+                        pos: token.pos,
+                        cause: Box::new(ParseErrorCause::UnexpectedToken(
+                            self.input.next().unwrap().unwrap(),
+                        )),
+                    });
+                }
             }?;
 
             entries.push(res);
@@ -64,22 +72,19 @@ impl<'input> Parser<'input> {
         Ok(Rhs(entries))
     }
 
-    fn parse_key(&mut self) -> Result<String> {
-        let mut key = String::new();
-
-        while let Some(&c) = self.chars.peek() {
-            match c {
-                '&' | '@' | '[' | '.' => {
-                    break;
-                }
-                _ => {
-                    self.assert_next(c)?;
-                    key.push(c);
-                }
-            }
+    fn assert_next(&mut self, expected: TokenKind) -> Result<()> {
+        let got = self.input.next().ok_or(ParseError {
+            pos: self.input.pos(),
+            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+        })??;
+        if expected == got.kind {
+            Ok(())
+        } else {
+            return Err(ParseError {
+                pos: got.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(got)),
+            });
         }
-
-        Ok(key)
     }
 
     fn parse_index_op(&mut self) -> Result<IndexOp> {
@@ -266,14 +271,5 @@ impl<'input> Parser<'input> {
         }
 
         num.parse().map_err(|_| Error::IndexTooLarge(num))
-    }
-
-    fn assert_next(&mut self, expected: char) -> Result<()> {
-        let got = self.chars.next().ok_or(Error::UnexpectedEof)?;
-        if expected == got {
-            Ok(())
-        } else {
-            Err(Error::WrongCharacter { expected, got })
-        }
     }
 }
