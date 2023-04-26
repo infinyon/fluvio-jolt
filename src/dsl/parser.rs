@@ -88,77 +88,112 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_index_op(&mut self) -> Result<IndexOp> {
-        self.assert_next('[')?;
+        self.assert_next(TokenKind::OpenBrkt)?;
 
-        let c = *self.chars.peek().ok_or(Error::UnexpectedEof)?;
+        let token = self.input.peek().ok_or(ParseError {
+            pos: self.input.pos(),
+            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+        })??;
 
-        let op = match c {
-            '#' => {
-                self.assert_next('#')?;
+        let op = match token.kind {
+            TokenKind::Square => {
+                self.assert_next(TokenKind::Square)?;
                 let idx = self.parse_index()?;
                 IndexOp::Square(idx)
             }
-            '&' => {
+            TokenKind::Amp => {
                 let amp = self.parse_amp()?;
                 IndexOp::Amp(amp.0, amp.1)
             }
-            ']' => IndexOp::Empty,
+            TokenKind::CloseBrkt => IndexOp::Empty,
+            TokenKind::Key(key) => {
+                self.input.next().unwrap().unwrap();
+
+                let idx = key.parse().map_err(|e| ParseError {
+                    pos: token.pos,
+                    cause: Box::new(ParseErrorCause::InvalidIndex(e)),
+                })?;
+
+                IndexOp::Literal(idx)
+            }
             _ => {
-                if c.is_ascii_digit() {
-                    let idx = self.parse_index()?;
-                    IndexOp::Literal(idx)
-                } else {
-                    return Err(Error::UnexpectedCharacter(c));
-                }
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: Box::new(ParseErrorCause::UnexpectedToken(
+                        self.input.next().unwrap().unwrap(),
+                    )),
+                });
             }
         };
 
-        self.assert_next(']')?;
+        self.assert_next(TokenKind::CloseBrkt)?;
 
         Ok(op)
     }
 
     fn parse_square_lhs(&mut self) -> Result<String> {
-        self.assert_next('#')?;
+        self.assert_next(TokenKind::Square)?;
 
-        let mut key = String::new();
-        for c in self.chars.by_ref() {
-            key.push(c);
+        let token = self.input.next().ok_or(ParseError {
+            pos: self.input.pos(),
+            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+        })??;
+
+        match token.kind {
+            TokenKind::Key(key) => Ok(key),
+            _ => Err(ParseError {
+                pos: token.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(
+                    self.input.next().unwrap().unwrap(),
+                )),
+            }),
         }
-
-        Ok(key)
     }
 
     fn parse_at(&mut self) -> Result<Option<(usize, String)>> {
-        self.assert_next('@')?;
+        self.assert_next(TokenKind::At)?;
 
-        if self.chars.peek().is_none() {
-            return Ok(None);
+        let token = match self.input.peek() {
+            Some(token) => token?,
+            None => return Ok(None),
+        };
+
+        match token.kind {
+            TokenKind::OpenPrnth => (),
+            _ => return Ok(None),
         }
 
-        self.assert_next('(')?;
+        self.assert_next(TokenKind::OpenPrnth)?;
         let idx = self.parse_index()?;
-        self.assert_next(',')?;
-        let mut key = String::new();
-        loop {
-            let c = self.chars.next().ok_or(Error::UnexpectedEof)?;
+        self.assert_next(TokenKind::Comma)?;
 
-            match c {
-                ')' => break,
-                _ => key.push(c),
+        let token = self.input.next().ok_or(ParseError {
+            pos: self.input.pos(),
+            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+        })??;
+
+        let key = match token.kind {
+            TokenKind::Key(key) => key,
+            _ => {
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+                });
             }
-        }
+        };
+
+        self.assert_next(TokenKind::ClosePrnth)?;
 
         Ok(Some((idx, key)))
     }
 
     fn parse_dollar_sign(&mut self) -> Result<(usize, usize)> {
-        self.assert_next('$')?;
+        self.assert_next(TokenKind::DollarSign)?;
         self.parse_amp_or_ds()
     }
 
     fn parse_amp(&mut self) -> Result<(usize, usize)> {
-        self.assert_next('&')?;
+        self.assert_next(TokenKind::Amp)?;
         self.parse_amp_or_ds()
     }
 

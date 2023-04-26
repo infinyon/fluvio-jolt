@@ -1,5 +1,6 @@
 use std::fmt;
 use std::error::Error;
+use std::num::ParseIntError;
 use thiserror::Error as ThisError;
 use super::token::Token;
 
@@ -11,12 +12,14 @@ pub struct ParseError {
 
 #[derive(Debug, ThisError)]
 pub enum ParseErrorCause {
-    #[error("Unexpected end of input.")]
+    #[error("Unexpected end of input")]
     UnexpectedEndOfInput,
-    #[error("Unexpected character: '{0}'.")]
+    #[error("Unexpected character: '{0}'")]
     UnexpectedChar(char),
     #[error("Unexpected token: {0:?}")]
     UnexpectedToken(Token),
+    #[error("Invalid index literal: {0}")]
+    InvalidIndex(ParseIntError),
 }
 
 impl fmt::Display for ParseError {
