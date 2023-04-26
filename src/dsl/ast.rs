@@ -7,7 +7,7 @@ pub enum Lhs {
     Amp(usize, usize),
     At(Option<(usize, String)>),
     Square(String),
-    Key(KeySelection),
+    Pipes(Vec<Stars>),
 }
 
 impl Lhs {
@@ -17,12 +17,7 @@ impl Lhs {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum KeySelection {
-    Star,
-    Stars(Vec<String>),
-    Literal(String),
-    Pipe(Vec<String>),
-}
+pub struct Stars(pub Vec<String>);
 
 #[derive(Debug, PartialEq)]
 pub struct Rhs(pub Vec<RhsEntry>);

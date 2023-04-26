@@ -55,12 +55,7 @@ impl<'input> Tokenizer<'input> {
     fn key(&mut self) -> Result<Token, ParseError> {
         let start = self.pos;
         let mut key = String::new();
-        loop {
-            let c = match self.chars.peek() {
-                Some(c) => *c,
-                None => break,
-            };
-
+        while let Some(&c) = self.chars.peek() {
             if c == '\\' {
                 self.advance().unwrap();
                 key.push(self.escape()?);
@@ -78,16 +73,15 @@ impl<'input> Tokenizer<'input> {
     }
 
     pub fn peek(&mut self) -> Option<Result<&Token, ParseError>> {
-        if let Some(token) = self.cache.as_ref() {
-            Some(Ok(token))
-        } else {
+        if self.cache.is_none() {
             self.cache = match self.next() {
                 Some(Ok(v)) => Some(v),
                 Some(Err(e)) => return Some(Err(e)),
                 None => return None,
             };
-            Some(Ok(self.cache.as_ref().unwrap()))
         }
+
+        Some(Ok(self.cache.as_ref().unwrap()))
     }
 }
 
