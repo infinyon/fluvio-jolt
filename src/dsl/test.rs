@@ -353,13 +353,56 @@ fn test_parse_rhs_misc() {
     }
     .run();
     RhsTestCase {
+        expr: "photo-&-url",
+        expected: Rhs(vec![
+            RhsEntry::Key("photo-".into()),
+            RhsEntry::Amp(0, 0),
+            RhsEntry::Key("-url".into()),
+        ]),
+    }
+    .run();
+}
+
+#[test]
+fn test_parse_rhs_escape() {
+    RhsTestCase {
+        expr: "\\@A",
+        expected: Rhs(vec![RhsEntry::Key("@A".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\$B",
+        expected: Rhs(vec![RhsEntry::Key("$B".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\&C",
+        expected: Rhs(vec![RhsEntry::Key("&C".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\[D",
+        expected: Rhs(vec![RhsEntry::Key("[D".into())]),
+    }
+    .run();
+    RhsTestCase {
         expr: "\\[\\]E",
         expected: Rhs(vec![RhsEntry::Key("[]E".into())]),
     }
     .run();
     RhsTestCase {
-        expr: "\\@A",
-        expected: Rhs(vec![RhsEntry::Key("@A".into())]),
+        expr: "\\]F",
+        expected: Rhs(vec![RhsEntry::Key("]F".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\*G",
+        expected: Rhs(vec![RhsEntry::Key("*G".into())]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "\\#H",
+        expected: Rhs(vec![RhsEntry::Key("#H".into())]),
     }
     .run();
 }

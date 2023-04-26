@@ -215,9 +215,13 @@ impl<'input> Parser<'input> {
         }?;
 
         match &token.kind {
-            TokenKind::Key(_) => {
-                let idx = self.parse_index()?;
-                Ok((idx, 0))
+            TokenKind::Key(key) => {
+                if key.chars().all(|c| c.is_ascii_digit()) {
+                    let idx = self.parse_index()?;
+                    Ok((idx, 0))
+                } else {
+                    Ok((0, 0))
+                }
             }
             TokenKind::OpenPrnth => {
                 self.assert_next(TokenKind::OpenPrnth)?;
