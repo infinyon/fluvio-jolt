@@ -124,10 +124,7 @@ impl<'input> Parser<'input> {
             }
             TokenKind::CloseBrkt => IndexOp::Empty,
             TokenKind::Key(_) => {
-                self.input.next().unwrap().unwrap();
-
                 let idx = self.parse_index()?;
-
                 IndexOp::Literal(idx)
             }
             _ => {
@@ -277,7 +274,13 @@ impl<'input> Parser<'input> {
         loop {
             let token = match self.input.peek() {
                 Some(token) => token,
-                None => return Ok(Stars(stars)),
+                None => {
+                    if looking_for != LookingFor::Star {
+                        stars.push(String::new());
+                    }
+
+                    return Ok(Stars(stars));
+                }
             }?;
 
             match &token.kind {
@@ -318,7 +321,7 @@ impl<'input> Parser<'input> {
                     looking_for = LookingFor::Key;
                 }
                 _ => {
-                    if looking_for == LookingFor::Key {
+                    if looking_for != LookingFor::Star {
                         stars.push(String::new());
                     }
 
@@ -341,9 +344,7 @@ impl<'input> Parser<'input> {
             }),
             _ => Err(ParseError {
                 pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(
-                    self.input.next().unwrap().unwrap(),
-                )),
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
             }),
         }
     }
