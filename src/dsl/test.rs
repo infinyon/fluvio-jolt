@@ -219,11 +219,26 @@ impl<'a> RhsTestCase<'a> {
     }
 }
 
+impl From<&str> for Box<Rhs> {
+    fn from(s: &str) -> Box<Rhs> {
+        Rhs(vec![RhsEntry::Key(s.into())]).into()
+    }    
+}
+
 #[test]
 fn test_parse_rhs_amp_short() {
     RhsTestCase {
         expr: "&",
         expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
+    }
+    .run();
+}
+
+#[test]
+fn test_parse_rhs_amp_short_troll() {
+    RhsTestCase {
+        expr: "&(12)",
+        expected: Rhs(vec![RhsEntry::Amp(12, 0)]),
     }
     .run();
 }

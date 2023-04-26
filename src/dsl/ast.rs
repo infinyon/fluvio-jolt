@@ -25,7 +25,7 @@ pub struct Rhs(pub Vec<RhsEntry>);
 #[derive(Debug, PartialEq)]
 pub enum RhsEntry {
     Amp(usize, usize),
-    At(Option<(usize, String)>),
+    At(Option<(usize, Box<Rhs>)>),
     Index(IndexOp),
     Key(String),
     Dot,
