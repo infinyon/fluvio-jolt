@@ -1,4 +1,4 @@
-use super::ast::{Rhs, Lhs, KeySelection, IndexOp, RhsEntry};
+use super::ast::{Rhs, Lhs, Stars, IndexOp, RhsEntry};
 
 struct LhsTestCase<'a> {
     expr: &'a str,
@@ -34,7 +34,7 @@ fn test_parse_lhs_square() {
 fn test_parse_lhs_key() {
     LhsTestCase {
         expr: "my123 _12\n3key",
-        expected: Lhs::Key(KeySelection::Literal("my123 _12\n3key".into())),
+        expected: Lhs::Pipes(vec![Stars(vec!["my123 _12\n3key".into()])]),
     }
     .run();
 }
@@ -43,7 +43,7 @@ fn test_parse_lhs_key() {
 fn test_parse_lhs_star() {
     LhsTestCase {
         expr: "*",
-        expected: Lhs::Key(KeySelection::Star),
+        expected: Lhs::Pipes(vec![Stars(vec!["".into(), "".into()])]),
     }
     .run();
 }
@@ -52,11 +52,7 @@ fn test_parse_lhs_star() {
 fn test_parse_lhs_stars() {
     LhsTestCase {
         expr: "qwe*asd*zxc",
-        expected: Lhs::Key(KeySelection::Stars(vec![
-            "qwe".into(),
-            "asd".into(),
-            "zxc".into(),
-        ])),
+        expected: Lhs::Pipes(vec![Stars(vec!["qwe".into(), "asd".into(), "zxc".into()])]),
     }
     .run();
 }
@@ -65,12 +61,12 @@ fn test_parse_lhs_stars() {
 fn test_parse_lhs_stars_leading() {
     LhsTestCase {
         expr: "*qwe*asd*zxc",
-        expected: Lhs::Key(KeySelection::Stars(vec![
+        expected: Lhs::Pipes(vec![Stars(vec![
             "".into(),
             "qwe".into(),
             "asd".into(),
             "zxc".into(),
-        ])),
+        ])]),
     }
     .run();
 }
@@ -79,12 +75,12 @@ fn test_parse_lhs_stars_leading() {
 fn test_parse_lhs_stars_trailing() {
     LhsTestCase {
         expr: "qwe*asd*zxc*",
-        expected: Lhs::Key(KeySelection::Stars(vec![
+        expected: Lhs::Pipes(vec![Stars(vec![
             "qwe".into(),
             "asd".into(),
             "zxc".into(),
             "".into(),
-        ])),
+        ])]),
     }
     .run();
 }
@@ -93,11 +89,11 @@ fn test_parse_lhs_stars_trailing() {
 fn test_parse_lhs_pipe() {
     LhsTestCase {
         expr: "qwe|asd|zxc",
-        expected: Lhs::Key(KeySelection::Pipe(vec![
-            "qwe".into(),
-            "asd".into(),
-            "zxc".into(),
-        ])),
+        expected: Lhs::Pipes(vec![
+            Stars(vec!["qwe".into()]),
+            Stars(vec!["asd".into()]),
+            Stars(vec!["zxc".into()]),
+        ]),
     }
     .run();
 }
@@ -106,12 +102,12 @@ fn test_parse_lhs_pipe() {
 fn test_parse_lhs_pipe_trailing() {
     LhsTestCase {
         expr: "qwe|asd|zxc|",
-        expected: Lhs::Key(KeySelection::Pipe(vec![
-            "qwe".into(),
-            "asd".into(),
-            "zxc".into(),
-            "".into(),
-        ])),
+        expected: Lhs::Pipes(vec![
+            Stars(vec!["qwe".into()]),
+            Stars(vec!["asd".into()]),
+            Stars(vec!["zxc".into()]),
+            Stars(vec!["".into()]),
+        ]),
     }
     .run();
 }
@@ -120,12 +116,12 @@ fn test_parse_lhs_pipe_trailing() {
 fn test_parse_lhs_pipe_leading() {
     LhsTestCase {
         expr: "|qwe|asd|zxc",
-        expected: Lhs::Key(KeySelection::Pipe(vec![
-            "".into(),
-            "qwe".into(),
-            "asd".into(),
-            "zxc".into(),
-        ])),
+        expected: Lhs::Pipes(vec![
+            Stars(vec!["".into()]),
+            Stars(vec!["qwe".into()]),
+            Stars(vec!["asd".into()]),
+            Stars(vec!["zxc".into()]),
+        ]),
     }
     .run();
 }
