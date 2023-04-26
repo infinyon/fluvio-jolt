@@ -8,35 +8,44 @@ use super::{
 
 pub struct Tokenizer<'input> {
     chars: Peekable<Chars<'input>>,
-    byte_idx: usize,
+    pos: usize,
+    cache: Option<Token>,
 }
 
 impl<'input> Tokenizer<'input> {
     pub fn new(input: &'input str) -> Self {
         let chars = input.chars().peekable();
-        Self { chars, byte_idx: 0 }
+        Self {
+            chars,
+            pos: 0,
+            cache: None,
+        }
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
     }
 
     fn advance(&mut self) -> Option<char> {
         let c = self.chars.next()?;
-        self.byte_idx += c.len_utf8();
+        self.pos += 1;
         Some(c)
     }
 
     fn output_single_char(&mut self, kind: TokenKind) -> Token {
-        let pos = self.byte_idx;
+        let pos = self.pos;
         self.advance().unwrap();
         Token { pos, kind }
     }
 
     fn escape(&mut self) -> Result<char, ParseError> {
         let c = self.advance().ok_or(ParseError {
-            pos: self.byte_idx,
+            pos: self.pos,
             cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
         })?;
         if !SPECIAL_CHARS.contains(&c) {
             return Err(ParseError {
-                pos: self.byte_idx,
+                pos: self.pos,
                 cause: Box::new(ParseErrorCause::UnexpectedChar(c)),
             });
         }
@@ -44,7 +53,7 @@ impl<'input> Tokenizer<'input> {
     }
 
     fn key(&mut self) -> Result<Token, ParseError> {
-        let start = self.byte_idx;
+        let start = self.pos;
         let mut key = String::new();
         loop {
             let c = match self.chars.peek() {
@@ -67,12 +76,29 @@ impl<'input> Tokenizer<'input> {
             kind: TokenKind::Key(key),
         })
     }
+
+    pub fn peek(&mut self) -> Option<Result<&Token, ParseError>> {
+        if let Some(token) = self.cache.as_ref() {
+            Some(Ok(token))
+        } else {
+            self.cache = match self.next() {
+                Some(Ok(v)) => Some(v),
+                Some(Err(e)) => return Some(Err(e)),
+                None => return None,
+            };
+            Some(Ok(self.cache.as_ref().unwrap()))
+        }
+    }
 }
 
 impl<'input> Iterator for Tokenizer<'input> {
     type Item = Result<Token, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(token) = self.cache.take() {
+            return Some(Ok(token));
+        }
+
         match self.chars.peek()? {
             '$' => Some(Ok(self.output_single_char(TokenKind::DollarSign))),
             '&' => Some(Ok(self.output_single_char(TokenKind::Amp))),

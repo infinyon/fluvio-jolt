@@ -1,6 +1,7 @@
 use std::fmt;
 use std::error::Error;
 use thiserror::Error as ThisError;
+use super::token::Token;
 
 #[derive(Debug)]
 pub struct ParseError {
@@ -14,6 +15,8 @@ pub enum ParseErrorCause {
     UnexpectedEndOfInput,
     #[error("Unexpected character: '{0}'.")]
     UnexpectedChar(char),
+    #[error("Unexpected token: {0:?}")]
+    UnexpectedToken(Token),
 }
 
 impl fmt::Display for ParseError {

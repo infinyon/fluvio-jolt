@@ -1,5 +1,5 @@
-use super::ParseError;
-use super::token::Token;
+use super::error::{ParseErrorCause, ParseError};
+use super::token::{TokenKind, Token};
 use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
 use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, KeySelection};
@@ -18,18 +18,25 @@ impl<'input> Parser<'input> {
     }
 
     pub fn parse_lhs(&mut self) -> Result<Lhs> {
-        let c = self.chars.peek().ok_or(Error::EmptyExpr)?;
+        let token = self.input.peek().ok_or(ParseError {
+            pos: self.input.pos(),
+            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+        })??;
 
-        let res = match c {
-            '#' => self.parse_square_lhs().map(Lhs::Square),
-            '@' => self.parse_at().map(Lhs::At),
-            '$' => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
-            '&' => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
+        let res = match token.kind {
+            TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
+            TokenKind::At => self.parse_at().map(Lhs::At),
+            TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
+            TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
             _ => self.parse_key_selection().map(Lhs::Key),
         }?;
 
-        if let Some(c) = self.chars.next() {
-            return Err(Error::UnexpectedCharacter(c));
+        if let Some(token) = self.input.next() {
+            let token = token?;
+            return Err(ParseError {
+                pos: token.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+            });
         }
 
         Ok(res)
@@ -38,12 +45,13 @@ impl<'input> Parser<'input> {
     pub fn parse_rhs(&mut self) -> Result<Rhs> {
         let mut entries = Vec::new();
 
-        while let Some(c) = self.chars.peek() {
-            let res = match c {
-                '&' => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                '@' => self.parse_at().map(RhsEntry::At),
-                '[' => self.parse_index_op().map(RhsEntry::Index),
-                '.' => {
+        while let Some(token) = self.input.peek() {
+            let token = token?;
+            let res = match token.kind {
+                TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
+                TokenKind::At => self.parse_at().map(RhsEntry::At),
+                TokenKind::OpenBrkt => self.parse_index_op().map(RhsEntry::Index),
+                TokenKind::Dot => {
                     self.assert_next('.')?;
                     Ok(RhsEntry::Dot)
                 }
