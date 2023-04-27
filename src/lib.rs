@@ -3,6 +3,8 @@ mod shift;
 mod default;
 mod remove;
 mod pointer;
+mod transform;
+mod error;
 #[cfg(not(feature = "fuzz"))]
 mod dsl;
 #[cfg(feature = "fuzz")]
@@ -18,6 +20,8 @@ use crate::spec::Operation;
 
 pub use spec::TransformSpec;
 use crate::pointer::JsonPointer;
+
+pub use error::{Error, Result};
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///

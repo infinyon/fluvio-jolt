@@ -1,7 +1,7 @@
 use super::parser::Parser;
 use super::ParseError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Lhs {
     DollarSign(usize, usize),
     Amp(usize, usize),
@@ -16,13 +16,13 @@ impl Lhs {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Stars(pub Vec<String>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Rhs(pub Vec<RhsEntry>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, Box<Rhs>)>),
@@ -31,7 +31,7 @@ pub enum RhsEntry {
     Dot,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum IndexOp {
     Square(usize),
     Amp(usize, usize),

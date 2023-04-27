@@ -1,6 +1,29 @@
+use indexmap::IndexMap;
 use serde_json::{Map, Value};
+use crate::dsl::{LhsWithHash, Lhs, Rhs};
 use crate::spec::Spec;
 use crate::{delete, insert, JsonPointer};
+use xxhash_rust::xxh3::Xxh3Builder;
+use serde::Deserialize;
+use crate::transform::Transform;
+use crate::{Error, Result};
+
+type Obj = IndexMap<LhsWithHash, Val, Xxh3Builder>;
+
+#[derive(Deserialize)]
+enum Val {
+    Obj(Box<Obj>),
+    Rhs(Rhs),
+}
+
+#[derive(Deserialize)]
+pub struct Shift(Obj);
+
+impl Transform for Shift {
+    fn apply(&self, val: &Value) -> Result<Value> {
+        todo!();
+    }
+}
 
 pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
     let mut result = Value::Object(Map::new());
