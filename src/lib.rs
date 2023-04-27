@@ -3,7 +3,10 @@ mod shift;
 mod default;
 mod remove;
 mod pointer;
+#[cfg(not(feature = "fuzz"))]
 mod dsl;
+#[cfg(feature = "fuzz")]
+pub mod dsl;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;

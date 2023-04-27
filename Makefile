@@ -9,3 +9,6 @@ check-fmt:
 check-clippy:
 	rustup component add clippy
 	cargo clippy --all-features --tests -- -D warnings
+
+fuzz-parser:
+	cargo +nightly fuzz run fuzz_target_1
