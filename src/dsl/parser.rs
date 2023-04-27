@@ -163,9 +163,7 @@ impl<'input> Parser<'input> {
             TokenKind::Key(key) => Ok(key),
             _ => Err(ParseError {
                 pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(
-                    self.input.next().unwrap().unwrap(),
-                )),
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
             }),
         }
     }
