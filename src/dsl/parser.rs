@@ -191,6 +191,9 @@ impl<'input> Parser<'input> {
         let mut idx = 0;
 
         if let TokenKind::Key(key) = &token.kind {
+            // This is hacky because this can be a rhs expr that just starts with a key.
+            // And that key could consist only of digits.
+            // We probably need two token look-ahead to do this properly but it isn't implemented in tokenizer.
             if key.chars().all(|c| c.is_ascii_digit()) {
                 idx = key.parse().map_err(|e| ParseError {
                     pos: token.pos,
