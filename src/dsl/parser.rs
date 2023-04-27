@@ -1,5 +1,5 @@
 use super::error::{ParseErrorCause, ParseError};
-use super::token::TokenKind;
+use super::token::{Token, TokenKind};
 use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
 use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, Stars};
@@ -177,42 +177,69 @@ impl<'input> Parser<'input> {
             Some(token) => token?,
             None => return Ok(None),
         };
-        match token.kind {
-            TokenKind::OpenPrnth => (),
-            TokenKind::OpenBrkt | TokenKind::Dot => return Ok(None),
-            _ => {
-                let rhs = self.parse_rhs_impl()?;
-                return Ok(Some((0, Box::new(rhs))));
-            }
-        }
-        self.assert_next(TokenKind::OpenPrnth)?;
-
-        let token = match self.input.peek() {
-            Some(token) => token?,
-            None => return Ok(None),
-        };
-
-        let mut idx = 0;
-
-        if let TokenKind::Key(key) = &token.kind {
-            // This is hacky because this can be a rhs expr that just starts with a key.
-            // And that key could consist only of digits.
-            // We probably need two token look-ahead to do this properly but it isn't implemented in tokenizer.
-            if key.chars().all(|c| c.is_ascii_digit()) {
-                idx = key.parse().map_err(|e| ParseError {
-                    pos: token.pos,
-                    cause: Box::new(ParseErrorCause::InvalidIndex(e)),
-                })?;
-                self.input.next().unwrap().unwrap();
-                self.assert_next(TokenKind::Comma)?;
-            }
+        let mut assert_close_prnth = false;
+        if token.kind == TokenKind::OpenPrnth {
+            self.assert_next(TokenKind::OpenPrnth)?;
+            assert_close_prnth = true;
         }
 
         let rhs = self.parse_rhs_impl()?;
 
-        self.assert_next(TokenKind::ClosePrnth)?;
+        let token = match self.input.peek() {
+            Some(token) => token?,
+            None => return Ok(Some((0, Box::new(rhs)))),
+        };
 
-        Ok(Some((idx, Box::new(rhs))))
+        match &token.kind {
+            TokenKind::ClosePrnth => {
+                if assert_close_prnth {
+                    self.assert_next(TokenKind::ClosePrnth)?;
+                    Ok(Some((0, Box::new(rhs))))
+                } else {
+                    Err(ParseError {
+                        pos: token.pos,
+                        cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
+                            pos: token.pos,
+                            kind: TokenKind::ClosePrnth,
+                        })),
+                    })
+                }
+            }
+            TokenKind::Comma => {
+                if rhs.0.len() != 1 {
+                    return Err(ParseError {
+                        pos: token.pos,
+                        cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
+                            pos: token.pos,
+                            kind: TokenKind::Comma,
+                        })),
+                    });
+                }
+                let mut rhs = rhs;
+                let idx = match rhs.0.pop().unwrap() {
+                    RhsEntry::Key(key) => key.parse().map_err(|e| ParseError {
+                        pos: token.pos,
+                        cause: Box::new(ParseErrorCause::InvalidIndex(e)),
+                    })?,
+                    _ => {
+                        return Err(ParseError {
+                            pos: token.pos,
+                            cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
+                                pos: token.pos,
+                                kind: TokenKind::Comma,
+                            })),
+                        });
+                    }
+                };
+                self.assert_next(TokenKind::Comma)?;
+                let rhs = self.parse_rhs_impl()?;
+                if assert_close_prnth {
+                    self.assert_next(TokenKind::ClosePrnth)?;
+                }
+                Ok(Some((idx, Box::new(rhs))))
+            }
+            _ => Ok(Some((0, Box::new(rhs)))),
+        }
     }
 
     fn parse_dollar_sign(&mut self) -> Result<(usize, usize)> {
