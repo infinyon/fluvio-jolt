@@ -205,6 +205,18 @@ fn test_parse_lhs_misc() {
         expected: Lhs::At(Some((0, Box::new(Rhs(vec![RhsEntry::Amp(1, 0)]))))),
     }
     .run();
+    LhsTestCase {
+        expr: "@(2,clone&(1,1)_GCPerProIdenInfoPhyInfoStreet)",
+        expected: Lhs::At(Some((
+            2,
+            Box::new(Rhs(vec![
+                RhsEntry::Key("clone".into()),
+                RhsEntry::Amp(1, 1),
+                RhsEntry::Key("_GCPerProIdenInfoPhyInfoStreet".into()),
+            ])),
+        ))),
+    }
+    .run();
 }
 
 struct RhsTestCase<'a> {
