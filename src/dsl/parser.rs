@@ -179,7 +179,11 @@ impl<'input> Parser<'input> {
         };
         match token.kind {
             TokenKind::OpenPrnth => (),
-            _ => return Ok(None),
+            TokenKind::OpenBrkt | TokenKind::Dot => return Ok(None),
+            _ => {
+                let rhs = self.parse_rhs_impl()?;
+                return Ok(Some((0, Box::new(rhs))));
+            }
         }
         self.assert_next(TokenKind::OpenPrnth)?;
 

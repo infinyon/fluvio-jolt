@@ -198,6 +198,15 @@ fn test_parse_lhs_dollar_sign_full() {
     .run();
 }
 
+#[test]
+fn test_parse_lhs_misc() {
+    LhsTestCase {
+        expr: "@&1",
+        expected: Lhs::At(Some((0, Box::new(Rhs(vec![RhsEntry::Amp(1, 0)]))))),
+    }
+    .run();
+}
+
 struct RhsTestCase<'a> {
     expr: &'a str,
     expected: Rhs,
@@ -421,6 +430,21 @@ fn test_parse_rhs_misc() {
                 Box::new(Rhs(vec![
                     RhsEntry::Key("captions".into()),
                     RhsEntry::Index(IndexOp::Literal(1)),
+                ])),
+            ))),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "states.@(2,states[&])",
+        expected: Rhs(vec![
+            RhsEntry::Key("states".into()),
+            RhsEntry::Dot,
+            RhsEntry::At(Some((
+                2,
+                Box::new(Rhs(vec![
+                    RhsEntry::Key("states".into()),
+                    RhsEntry::Index(IndexOp::Amp(0, 0)),
                 ])),
             ))),
         ]),
