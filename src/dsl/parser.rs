@@ -238,7 +238,16 @@ impl<'input> Parser<'input> {
                 }
                 Ok(Some((idx, Box::new(rhs))))
             }
-            _ => Ok(Some((0, Box::new(rhs)))),
+            _ => {
+                if assert_close_prnth {
+                    Err(ParseError {
+                        pos: self.input.pos(),
+                        cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
+                    })
+                } else {
+                    Ok(Some((0, Box::new(rhs))))
+                }
+            }
         }
     }
 
