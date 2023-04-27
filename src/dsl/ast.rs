@@ -5,7 +5,7 @@ use super::ParseError;
 pub enum Lhs {
     DollarSign(usize, usize),
     Amp(usize, usize),
-    At(Option<(usize, String)>),
+    At(Option<(usize, Box<Rhs>)>),
     Square(String),
     Pipes(Vec<Stars>),
 }

@@ -26,7 +26,7 @@ impl<'input> Parser<'input> {
 
         let res = match token.kind {
             TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
-            TokenKind::At => self.parse_at_lhs().map(Lhs::At),
+            TokenKind::At => self.parse_at().map(Lhs::At),
             TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
             _ => self.parse_pipes().map(Lhs::Pipes),
@@ -44,13 +44,27 @@ impl<'input> Parser<'input> {
     }
 
     pub fn parse_rhs(&mut self) -> Result<Rhs> {
+        let rhs = self.parse_rhs_impl()?;
+
+        if let Some(token) = self.input.next() {
+            let token = token?;
+            return Err(ParseError {
+                pos: token.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+            });
+        }
+
+        Ok(rhs)
+    }
+
+    fn parse_rhs_impl(&mut self) -> Result<Rhs> {
         let mut entries = Vec::new();
 
         while let Some(token) = self.input.peek() {
             let token = token?;
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                TokenKind::At => self.parse_at_rhs().map(RhsEntry::At),
+                TokenKind::At => self.parse_at().map(RhsEntry::At),
                 TokenKind::OpenBrkt => self.parse_index_op().map(RhsEntry::Index),
                 TokenKind::Dot => {
                     self.assert_next(TokenKind::Dot)?;
@@ -58,12 +72,7 @@ impl<'input> Parser<'input> {
                 }
                 TokenKind::Key(_) => self.parse_key().map(RhsEntry::Key),
                 _ => {
-                    return Err(ParseError {
-                        pos: token.pos,
-                        cause: Box::new(ParseErrorCause::UnexpectedToken(
-                            self.input.next().unwrap().unwrap(),
-                        )),
-                    });
+                    return Ok(Rhs(entries));
                 }
             }?;
 
@@ -161,78 +170,42 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_at_rhs(&mut self) -> Result<Option<(usize, Box<Rhs>)>> {
+    fn parse_at(&mut self) -> Result<Option<(usize, Box<Rhs>)>> {
         self.assert_next(TokenKind::At)?;
 
         let token = match self.input.peek() {
             Some(token) => token?,
             None => return Ok(None),
         };
-
         match token.kind {
             TokenKind::OpenPrnth => (),
             _ => return Ok(None),
         }
-
         self.assert_next(TokenKind::OpenPrnth)?;
-        let idx = self.parse_index()?;
-        self.assert_next(TokenKind::Comma)?;
-
-        let token = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
-
-        let key = match token.kind {
-            TokenKind::Key(key) => key,
-            _ => {
-                return Err(ParseError {
-                    pos: token.pos,
-                    cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-                });
-            }
-        };
-
-        self.assert_next(TokenKind::ClosePrnth)?;
-
-        Ok(Some((idx, key)))
-    }
-
-    fn parse_at_lhs(&mut self) -> Result<Option<(usize, String)>> {
-        self.assert_next(TokenKind::At)?;
 
         let token = match self.input.peek() {
             Some(token) => token?,
             None => return Ok(None),
         };
 
-        match token.kind {
-            TokenKind::OpenPrnth => (),
-            _ => return Ok(None),
+        let mut idx = 0;
+
+        if let TokenKind::Key(key) = &token.kind {
+            if key.chars().all(|c| c.is_ascii_digit()) {
+                idx = key.parse().map_err(|e| ParseError {
+                    pos: token.pos,
+                    cause: Box::new(ParseErrorCause::InvalidIndex(e)),
+                })?;
+                self.input.next().unwrap().unwrap();
+                self.assert_next(TokenKind::Comma)?;
+            }
         }
 
-        self.assert_next(TokenKind::OpenPrnth)?;
-        let idx = self.parse_index()?;
-        self.assert_next(TokenKind::Comma)?;
-
-        let token = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
-
-        let key = match token.kind {
-            TokenKind::Key(key) => key,
-            _ => {
-                return Err(ParseError {
-                    pos: token.pos,
-                    cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-                });
-            }
-        };
+        let rhs = self.parse_rhs_impl()?;
 
         self.assert_next(TokenKind::ClosePrnth)?;
 
-        Ok(Some((idx, key)))
+        Ok(Some((idx, Box::new(rhs))))
     }
 
     fn parse_dollar_sign(&mut self) -> Result<(usize, usize)> {

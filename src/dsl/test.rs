@@ -221,7 +221,7 @@ impl<'a> RhsTestCase<'a> {
 
 impl From<&str> for Box<Rhs> {
     fn from(s: &str) -> Box<Rhs> {
-        Rhs(vec![RhsEntry::Key(s.into())]).into()
+        Box::new(Rhs(vec![RhsEntry::Key(s.into())]))
     }
 }
 
