@@ -21,7 +21,21 @@ pub struct Shift(Obj);
 
 impl Transform for Shift {
     fn apply(&self, val: &Value) -> Result<Value> {
-        todo!();
+        ApplyShift {
+            shift: self,
+            path: Vec::new(),
+        }.apply(val)
+    }
+}
+
+struct ApplyShift<'a> {
+    path: Vec<&'a Value>,
+    shift: &'a Shift,
+}
+
+impl<'a> ApplyShift<'a> {
+    fn apply(&mut self, val: &Value) -> Result<Value> {
+        todo!()
     }
 }
 
