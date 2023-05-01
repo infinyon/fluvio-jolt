@@ -34,7 +34,7 @@ impl Transform for Shift {
     }
 }
 
-fn apply(obj: &Obj, path: &mut Vec<(Vec<&str>, &Value)>) -> Result<Value> {
+fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>) -> Result<Value> {
     let input = path.last().unwrap();
 
     let input = match input.1 {
@@ -48,6 +48,7 @@ fn apply(obj: &Obj, path: &mut Vec<(Vec<&str>, &Value)>) -> Result<Value> {
         // TODO: apply specific ordering when iterating obj
         for (lhs, rhs) in obj {
             let (res, m) = match_lhs(&lhs.lhs, k, &path)?;
+            path.push((m, v));
             match res {
                 MatchResult::OutputStr(k) => todo!(),
                 MatchResult::OutputValue => todo!(),
@@ -55,10 +56,15 @@ fn apply(obj: &Obj, path: &mut Vec<(Vec<&str>, &Value)>) -> Result<Value> {
                 MatchResult::NoMatch => (),
                 MatchResult::OutputAt(idx, rhs_expr) => todo!(),
             }
+            path.pop().unwrap();
         }
     }
 
     Ok(Value::Object(output))
+}
+
+fn eval_rhs(rhs: Rhs, path: &Vec<(Vec<&str>, &Value)>) -> Result<Value> {
+    todo!()
 }
 
 enum MatchResult<'a> {
@@ -72,10 +78,10 @@ enum MatchResult<'a> {
     OutputAt(usize, &'a Box<Rhs>),
 }
 
-fn match_lhs<'a>(
+fn match_lhs<'b, 'a: 'b>(
     lhs: &'a Lhs,
     k: &'a str,
-    path: &'a Vec<(Vec<&'a str>, &'a Value)>,
+    path: &'b Vec<(Vec<&'a str>, &'a Value)>,
 ) -> Result<(MatchResult<'a>, Vec<&'a str>)> {
     match lhs {
         Lhs::DollarSign(path_idx, match_idx) => {
@@ -108,7 +114,7 @@ fn match_lhs<'a>(
 
 fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
     if stars.is_empty() {
-        return None;
+        return if k.is_empty() { Some(vec![""]) } else { None };
     }
 
     let mut k = k.strip_prefix(stars[0].as_str())?;
@@ -132,7 +138,10 @@ fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
     Some(m)
 }
 
-fn get_match<'a>(idx: (usize, usize), path: &'a Vec<(Vec<&'a str>, &'a Value)>) -> Result<&'a str> {
+fn get_match<'b, 'a: 'b>(
+    idx: (usize, usize),
+    path: &'b Vec<(Vec<&'a str>, &'a Value)>,
+) -> Result<&'a str> {
     let (matches, _) = path.get(idx.0).ok_or(Error::PathIndexOutOfRange {
         idx: idx.0,
         len: path.len(),
