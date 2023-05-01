@@ -13,14 +13,35 @@ fn iter_json(dir_path: &str) -> Box<dyn Iterator<Item = (PathBuf, TestCase)>> {
         let contents = contents
             .split('\n')
             .map(|line| {
-                if let Some(idx) = line.find("//") {
-                    &line[..idx]
-                } else {
-                    line
+                let mut in_str = false;
+                let mut maybe_comment = false;
+                for (idx, c) in line.char_indices() {
+                    match c {
+                        '"' => {
+                            in_str = !in_str;
+                            maybe_comment = false;
+                        }
+                        '/' => {
+                            if maybe_comment {
+                                return &line[..idx - 1];
+                            }
+                            maybe_comment = !in_str;
+                        }
+                        _ => maybe_comment = false,
+                    }
                 }
+
+                line
             })
-            .collect::<String>();
-        let json = serde_json::from_str::<TestCase>(&contents).unwrap();
+            .collect::<Vec<_>>()
+            .join("");
+        let json = match serde_json::from_str::<TestCase>(&contents) {
+            Ok(json) => json,
+            Err(e) => {
+                let path = path.to_str().unwrap();
+                panic!("failed to deserialize test case at {path}:\n{e}\ninput was:\n{contents}");
+            }
+        };
 
         (path, json)
     });

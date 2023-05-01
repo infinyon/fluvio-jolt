@@ -303,6 +303,7 @@ impl<'input> Parser<'input> {
 
         loop {
             let stars = self.parse_stars()?;
+
             pipes.push(stars);
 
             let token = match self.input.peek() {

@@ -104,8 +104,30 @@ fn match_lhs<'a>(
     }
 }
 
-fn match_stars<'a>(stars: &[String], k: &'a str) -> Option<Vec<&'a str>> {
-    todo!()
+fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
+    if stars.is_empty() {
+        return None;
+    }
+
+    let mut k = k.strip_prefix(stars[0].as_str())?;
+
+    let mut m = Vec::new();
+
+    for pattern in stars.iter() {
+        if pattern.is_empty() {
+            m.push(k);
+        } else {
+            match k.find(pattern.as_str()) {
+                None => return None,
+                Some(idx) => {
+                    m.push(&k[..idx]);
+                    k = &k[idx..];
+                }
+            }
+        }
+    }
+
+    Some(m)
 }
 
 fn get_match<'a>(idx: (usize, usize), path: &'a Vec<(Vec<&'a str>, &'a Value)>) -> Result<&'a str> {
