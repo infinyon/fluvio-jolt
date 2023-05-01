@@ -50,23 +50,40 @@ fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>)
             let (res, m) = match_lhs(&lhs.lhs, k, &path)?;
             path.push((m, v));
             match res {
-                MatchResult::OutputStr(k) => todo!(),
-                MatchResult::OutputValue => todo!(),
-                MatchResult::OutputRhs => todo!(),
-                MatchResult::NoMatch => (),
+                MatchResult::OutputStr(k) => {
+                    let target = eval_rhs_target(rhs, path)?;
+                    *target = Value::String(k.to_owned());
+                }
+                MatchResult::OutputValue => {
+                    let target = eval_rhs_target(rhs, path)?;
+                    *target = Value::clone(v);
+                }
+                MatchResult::OutputRhs => {
+                    output[k] = eval_rhs(rhs, path)?;
+                }
                 MatchResult::OutputAt(idx, rhs_expr) => todo!(),
+                MatchResult::NoMatch => (),
             }
             path.pop().unwrap();
+
+            if res != MatchResult::NoMatch {
+                break;
+            }
         }
     }
 
     Ok(Value::Object(output))
 }
 
-fn eval_rhs(rhs: Rhs, path: &Vec<(Vec<&str>, &Value)>) -> Result<Value> {
+fn eval_rhs(rhs: &Val, path: &Vec<(Vec<&str>, &Value)>) -> Result<Value> {
     todo!()
 }
 
+fn eval_rhs_target<'a>(rhs: &Val, path: &mut Vec<(Vec<&str>, &'a Value)>) -> Result<&'a mut Value> {
+    todo!()
+}
+
+#[derive(PartialEq)]
 enum MatchResult<'a> {
     NoMatch,
     // output this str to the path specified by rhs
