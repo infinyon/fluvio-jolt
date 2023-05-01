@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
-use crate::dsl::{LhsWithHash, Lhs, Rhs};
+use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry};
 use crate::spec::Spec;
 use crate::{delete, insert, JsonPointer};
 use xxhash_rust::xxh3::Xxh3Builder;
@@ -8,9 +8,12 @@ use serde::Deserialize;
 use crate::transform::Transform;
 use crate::{Error, Result};
 
+const ROOT_KEY: &str = "root";
+
 type Obj = IndexMap<LhsWithHash, Val, Xxh3Builder>;
 
 #[derive(Deserialize)]
+#[serde(untagged)]
 enum Val {
     Obj(Box<Obj>),
     Rhs(Rhs),
@@ -21,22 +24,101 @@ pub struct Shift(Obj);
 
 impl Transform for Shift {
     fn apply(&self, val: &Value) -> Result<Value> {
-        ApplyShift {
-            shift: self,
-            path: Vec::new(),
-        }.apply(val)
+        let mut path = vec![(vec![ROOT_KEY], val)];
+        let out = apply(&self.0, &mut path);
+
+        path.pop().unwrap();
+        assert!(path.is_empty());
+
+        out
     }
 }
 
-struct ApplyShift<'a> {
-    path: Vec<&'a Value>,
-    shift: &'a Shift,
+fn apply(obj: &Obj, path: &mut Vec<(Vec<&str>, &Value)>) -> Result<Value> {
+    let input = path.last().unwrap();
+
+    let input = match input.1 {
+        Value::Object(input) => input,
+        _ => return Ok(Value::clone(input.1)),
+    };
+
+    let mut output = serde_json::Map::new();
+
+    for (k, v) in input.iter() {
+        // TODO: apply specific ordering when iterating obj
+        for (lhs, rhs) in obj {
+            let (res, m) = match_lhs(&lhs.lhs, k, &path)?;
+            match res {
+                MatchResult::OutputStr(k) => todo!(),
+                MatchResult::OutputValue => todo!(),
+                MatchResult::OutputRhs => todo!(),
+                MatchResult::NoMatch => (),
+            }
+        }
+    }
+
+    Ok(Value::Object(output))
 }
 
-impl<'a> ApplyShift<'a> {
-    fn apply(&mut self, val: &Value) -> Result<Value> {
-        todo!()
+enum MatchResult<'a> {
+    NoMatch,
+    // output this str to the path specified by rhs
+    OutputStr(&'a str),
+    // output value of input to the path specified by rhs
+    OutputValue,
+    // evaluate rhs and output the result to input key
+    OutputRhs,
+}
+
+fn match_lhs<'a>(
+    lhs: &'a Lhs,
+    k: &'a str,
+    path: &'a Vec<(Vec<&'a str>, &'a Value)>,
+) -> Result<(MatchResult<'a>, Vec<&'a str>)> {
+    match lhs {
+        Lhs::DollarSign(path_idx, match_idx) => {
+            let m = get_match((*path_idx, *match_idx), path)?;
+            Ok((MatchResult::OutputStr(m), vec![k]))
+        }
+        Lhs::Amp(path_idx, match_idx) => {
+            let m = get_match((*path_idx, *match_idx), path)?;
+            if m == k {
+                Ok((MatchResult::OutputRhs, vec![k]))
+            } else {
+                Ok((MatchResult::NoMatch, Vec::new()))
+            }
+        }
+        Lhs::At(at) => match at {
+            Some((idx, rhs)) => todo!(),
+            None => Ok((MatchResult::OutputValue, vec![k])),
+        },
+        Lhs::Square(lit) => Ok((MatchResult::OutputStr(lit), vec![k])),
+        Lhs::Pipes(pipes) => {
+            for stars in pipes.iter() {
+                if let Some(m) = match_stars(&stars.0, k) {
+                    return Ok((MatchResult::OutputRhs, m));
+                }
+            }
+            Ok((MatchResult::NoMatch, Vec::new()))
+        }
     }
+}
+
+fn match_stars<'a>(stars: &[String], k: &'a str) -> Option<Vec<&'a str>> {
+    todo!()
+}
+
+fn get_match<'a>(idx: (usize, usize), path: &'a Vec<(Vec<&'a str>, &'a Value)>) -> Result<&'a str> {
+    let (matches, _) = path.get(idx.0).ok_or(Error::PathIndexOutOfRange {
+        idx: idx.0,
+        len: path.len(),
+    })?;
+    let m = matches.get(idx.1).ok_or(Error::MatchIndexOutOfRange {
+        idx: idx.1,
+        len: path.len(),
+    })?;
+
+    Ok(*m)
 }
 
 pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {

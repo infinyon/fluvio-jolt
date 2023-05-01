@@ -11,5 +11,5 @@ mod deserialize;
 mod test;
 
 pub use error::ParseError;
-pub use ast::{Rhs, Lhs};
+pub use ast::{Rhs, Lhs, RhsEntry, IndexOp};
 pub use deserialize::LhsWithHash;
