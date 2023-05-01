@@ -53,6 +53,7 @@ fn apply(obj: &Obj, path: &mut Vec<(Vec<&str>, &Value)>) -> Result<Value> {
                 MatchResult::OutputValue => todo!(),
                 MatchResult::OutputRhs => todo!(),
                 MatchResult::NoMatch => (),
+                MatchResult::OutputAt(idx, rhs_expr) => todo!(),
             }
         }
     }
@@ -68,6 +69,7 @@ enum MatchResult<'a> {
     OutputValue,
     // evaluate rhs and output the result to input key
     OutputRhs,
+    OutputAt(usize, &'a Box<Rhs>),
 }
 
 fn match_lhs<'a>(
@@ -89,7 +91,7 @@ fn match_lhs<'a>(
             }
         }
         Lhs::At(at) => match at {
-            Some((idx, rhs)) => todo!(),
+            Some((idx, rhs)) => Ok((MatchResult::OutputAt(*idx, rhs), vec![k])),
             None => Ok((MatchResult::OutputValue, vec![k])),
         },
         Lhs::Square(lit) => Ok((MatchResult::OutputStr(lit), vec![k])),
