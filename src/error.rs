@@ -7,6 +7,10 @@ pub enum Error {
     PathIndexOutOfRange { idx: usize, len: usize },
     #[error("Match index out of range when using wildcard. Index={idx};Length={len};")]
     MatchIndexOutOfRange { idx: usize, len: usize },
+    #[error("Unexpected end of right hand side expression.")]
+    UnexpectedEndOfRhs,
+    #[error("Unexpected right hand side expression.")]
+    UnexpectedRhsEntry,
 }
 
 pub type Result<T> = StdResult<T, Error>;

@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
-use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry};
+use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp};
 use crate::spec::Spec;
 use crate::{delete, insert, JsonPointer};
 use xxhash_rust::xxh3::Xxh3Builder;
@@ -93,7 +93,34 @@ fn eval_rhs(rhs: &Val, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
 }
 
 fn eval_rhs_expr(rhs: &Rhs, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
-    todo!()
+    let mut iter = rhs.0.iter().skip(1);
+
+    let mut current = Value::Null;
+
+    while let Some(entry) = iter.next() {
+        match entry {
+            RhsEntry::Dot => (),
+            RhsEntry::Index(index_op) => {
+                match index_op {
+                }
+            }
+            _ => return Err(Error::UnexpectedRhsEntry),
+        }
+
+        let entry = iter.next().ok_or(Error::UnexpectedEndOfRhs)?;
+
+        match entry {
+            RhsEntry::Amp(idx0, idx1) => {
+                let m = get_match((*idx0, *idx1), path)?;
+
+            }
+            RhsEntry::At(at) => {}
+            RhsEntry::Key(key) => {}
+            _ => return Err(Error::UnexpectedRhsEntry),
+        }
+    }
+
+    Ok(current)
 }
 
 fn eval_rhs_target<'a>(rhs: &Val, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
@@ -153,7 +180,7 @@ fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
 
     let mut k = k.strip_prefix(stars[0].as_str())?;
 
-    let mut m = Vec::new();
+    let mut m = vec![k];
 
     for pattern in stars.iter() {
         if pattern.is_empty() {
