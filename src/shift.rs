@@ -47,7 +47,7 @@ fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>)
     for (k, v) in input.iter() {
         // TODO: apply specific ordering when iterating obj
         for (lhs, rhs) in obj {
-            let (res, m) = match_lhs(&lhs.lhs, k, &path)?;
+            let (res, m) = match_lhs(&lhs.lhs, k, path)?;
             path.push((m, v));
             match res {
                 MatchResult::OutputStr(k) => {
@@ -61,7 +61,20 @@ fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>)
                 MatchResult::OutputRhs => {
                     output[k] = eval_rhs(rhs, path)?;
                 }
-                MatchResult::OutputAt(idx, rhs_expr) => todo!(),
+                MatchResult::OutputAt(idx, rhs_expr) => {
+                    let target = eval_rhs_target(rhs, path)?;
+
+                    if path.len() <= idx {
+                        return Err(Error::PathIndexOutOfRange {
+                            idx,
+                            len: path.len(),
+                        });
+                    }
+
+                    let path = path[..path.len() - idx - 1].to_vec();
+
+                    *target = eval_rhs_expr(rhs_expr, &path)?;
+                }
                 MatchResult::NoMatch => (),
             }
             path.pop().unwrap();
@@ -75,11 +88,15 @@ fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>)
     Ok(Value::Object(output))
 }
 
-fn eval_rhs(rhs: &Val, path: &Vec<(Vec<&str>, &Value)>) -> Result<Value> {
+fn eval_rhs(rhs: &Val, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
     todo!()
 }
 
-fn eval_rhs_target<'a>(rhs: &Val, path: &mut Vec<(Vec<&str>, &'a Value)>) -> Result<&'a mut Value> {
+fn eval_rhs_expr(rhs: &Rhs, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
+    todo!()
+}
+
+fn eval_rhs_target<'a>(rhs: &Val, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
     todo!()
 }
 
@@ -92,13 +109,13 @@ enum MatchResult<'a> {
     OutputValue,
     // evaluate rhs and output the result to input key
     OutputRhs,
-    OutputAt(usize, &'a Box<Rhs>),
+    OutputAt(usize, &'a Rhs),
 }
 
 fn match_lhs<'b, 'a: 'b>(
     lhs: &'a Lhs,
     k: &'a str,
-    path: &'b Vec<(Vec<&'a str>, &'a Value)>,
+    path: &'b [(Vec<&'a str>, &'a Value)],
 ) -> Result<(MatchResult<'a>, Vec<&'a str>)> {
     match lhs {
         Lhs::DollarSign(path_idx, match_idx) => {
@@ -157,12 +174,17 @@ fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
 
 fn get_match<'b, 'a: 'b>(
     idx: (usize, usize),
-    path: &'b Vec<(Vec<&'a str>, &'a Value)>,
+    path: &'b [(Vec<&'a str>, &'a Value)],
 ) -> Result<&'a str> {
-    let (matches, _) = path.get(idx.0).ok_or(Error::PathIndexOutOfRange {
-        idx: idx.0,
-        len: path.len(),
-    })?;
+    if idx.0 >= path.len() {
+        return Err(Error::PathIndexOutOfRange {
+            idx: idx.0,
+            len: path.len(),
+        });
+    }
+
+    let (matches, _) = &path[path.len() - idx.0 - 1];
+
     let m = matches.get(idx.1).ok_or(Error::MatchIndexOutOfRange {
         idx: idx.1,
         len: path.len(),
