@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
-use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp};
+use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp, RhsPart};
 use crate::spec::Spec;
 use crate::{delete, insert, JsonPointer};
 use xxhash_rust::xxh3::Xxh3Builder;
@@ -151,9 +151,13 @@ fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)])
 fn eval_rhs(rhs: &Rhs, v: &Value) -> Result<Value> {
     let mut v = v;
 
-    let mut iter = rhs.0.iter();
-
-    while let Some(entry) = iter.next() {}
+    for part in rhs.0.iter() {
+        match part {
+            RhsPart::Index(idx_op) => {}
+            RhsPart::CompositeKey(entries) => {}
+            RhsPart::Key(entry) => {}
+        }
+    }
 
     todo!()
 }

@@ -69,6 +69,8 @@ impl<'input> Parser<'input> {
 
         let mut parts = Vec::new();
 
+        let mut last_was_dot = false;
+
         while let Some(token) = self.input.peek() {
             let token = token?;
             let part = match &token.kind {
@@ -78,7 +80,8 @@ impl<'input> Parser<'input> {
                 }
                 TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => self.parse_rhs_part(depth)?,
                 TokenKind::Dot => {
-                    if parts.is_empty() {
+                    // can't start with a dot and can't have consecutive dots
+                    if parts.is_empty() || last_was_dot {
                         return Err(ParseError {
                             pos: token.pos,
                             cause: ParseErrorCause::UnexpectedToken(
@@ -90,6 +93,8 @@ impl<'input> Parser<'input> {
 
                     self.assert_next(TokenKind::Dot)?;
 
+                    last_was_dot = true;
+
                     continue;
                 }
                 _ => {
@@ -97,7 +102,21 @@ impl<'input> Parser<'input> {
                 }
             };
 
+            last_was_dot = false;
+
             parts.push(part);
+        }
+
+        // can't end with a dot
+        if last_was_dot {
+            return Err(ParseError {
+                pos: self.input.pos(),
+                cause: ParseErrorCause::UnexpectedToken(Token {
+                    pos: self.input.pos(),
+                    kind: TokenKind::Dot,
+                })
+                .into(),
+            });
         }
 
         Ok(Rhs(parts))
