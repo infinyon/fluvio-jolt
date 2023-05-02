@@ -516,3 +516,15 @@ fn test_parse_rhs_empty() {
     }
     .run();
 }
+
+#[test]
+fn test_parse_rhs_idx_at() {
+    RhsTestCase {
+        expr: "hello[@(2,world)]",
+        expected: Rhs(vec![
+            RhsEntry::Key("hello".into()),
+            RhsEntry::Index(IndexOp::At(Some((2, "world".into())))),
+        ]),
+    }
+    .run();
+}

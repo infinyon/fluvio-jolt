@@ -128,6 +128,34 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     Ok(())
 }
 
+fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
+    let at = match at {
+        Some(at) => at,
+        None => return Ok(Value::clone(path.last().unwrap().1)),
+    };
+
+    if at.0 >= path.len() {
+        return Err(Error::PathIndexOutOfRange {
+            idx: at.0,
+            len: path.len(),
+        });
+    }
+
+    let v = &path[path.len() - at.0 - 1];
+
+    eval_rhs(&at.1, &v.1)
+}
+
+fn eval_rhs(rhs: &Rhs, v: &Value) -> Result<Value> {
+    let mut v = v;
+
+    let mut iter = rhs.0.iter();
+
+    while let Some(entry) = iter.next() {}
+
+    todo!()
+}
+
 #[derive(PartialEq)]
 enum MatchResult {
     // output value of input to the path specified by rhs if rhs is an expression
@@ -160,10 +188,7 @@ fn match_lhs<'ctx, 'input: 'ctx>(
             }
         }
         Lhs::At(at) => {
-            let val = match at {
-                Some(at) => todo!(),
-                None => Value::clone(path.last().unwrap().1),
-            };
+            let val = eval_at(at, path)?;
 
             Ok((Some(MatchResult::OutputVal(val)), vec![k]))
         }

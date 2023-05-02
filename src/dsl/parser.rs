@@ -136,6 +136,10 @@ impl<'input> Parser<'input> {
                 let idx = self.parse_index()?;
                 IndexOp::Literal(idx)
             }
+            TokenKind::At => {
+                let at = self.parse_at()?;
+                IndexOp::At(at)
+            }
             _ => {
                 return Err(ParseError {
                     pos: token.pos,

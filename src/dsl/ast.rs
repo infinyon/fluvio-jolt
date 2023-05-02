@@ -36,6 +36,7 @@ pub enum IndexOp {
     Square(usize),
     Amp(usize, usize),
     Literal(usize),
+    At(Option<(usize, Box<Rhs>)>),
     Empty,
 }
 
