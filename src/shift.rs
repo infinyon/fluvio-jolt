@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
 use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp};
@@ -24,113 +26,102 @@ pub struct Shift(Obj);
 
 impl Transform for Shift {
     fn apply(&self, val: &Value) -> Result<Value> {
-        let mut path = vec![(vec![ROOT_KEY], val)];
+        let mut path = vec![(vec![Cow::Borrowed(ROOT_KEY)], val)];
 
-        let mut out = serde_json::Map::new();
+        let mut out = Value::Null;
         apply(&self.0, &mut path, &mut out)?;
 
         path.pop().unwrap();
         assert!(path.is_empty());
 
-        Ok(Value::Object(out))
+        Ok(out)
     }
 }
 
-fn apply<'b, 'a: 'b>(
-    obj: &'a Obj,
-    path: &'b mut Vec<(Vec<&'a str>, &'a Value)>,
-    out: &'b mut serde_json::Map<String, Value>,
+fn apply<'ctx, 'input: 'ctx>(
+    obj: &'input Obj,
+    path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
+    out: &'ctx mut Value,
 ) -> Result<()> {
     let input = path.last().unwrap();
 
     match input.1 {
         Value::Object(input) => {
             for (k, v) in input.iter() {
-                match_obj_and_key(obj, path, k, Some(v), out)?;
+                match_obj_and_key(obj, path, Cow::Borrowed(k), v, out)?;
             }
         }
         Value::Bool(b) => {
             let k = if *b { "true" } else { "false" };
 
-            match_obj_and_key(obj, path, k, None, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
         }
         Value::Array(arr) => {
             for (k, v) in arr.iter().enumerate() {
                 let k = k.to_string();
-                match_obj_and_key(obj, path, &k, Some(v), out)?;
+                match_obj_and_key(obj, path, k.into(), v, out)?;
             }
         }
         Value::Number(n) => {
             let k = n.to_string();
 
-            match_obj_and_key(obj, path, &k, None, out)?;
+            match_obj_and_key(obj, path, k.into(), input.1, out)?;
         }
         Value::String(k) => {
-            match_obj_and_key(obj, path, k, None, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
         }
         Value::Null => {
             let k = "null";
-            match_obj_and_key(obj, path, k, None, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
         }
     };
 
     Ok(())
 }
 
-fn match_obj_and_key<'b, 'a: 'b>(
-    obj: &'a Obj,
-    path: &'b mut Vec<(Vec<&'a str>, &'a Value)>,
-    k: &'a str,
-    v: Option<&'a Value>,
-    out: &'b mut serde_json::Map<String, Value>,
-) -> Result<Value> {
-    todo!()
-}
+fn match_obj_and_key<'ctx, 'input: 'ctx>(
+    obj: &'input Obj,
+    path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
+    k: Cow<'input, str>,
+    v: &'input Value,
+    out: &'ctx mut Value,
+) -> Result<()> {
+    for (lhs, rhs) in obj.iter() {
+        let (res, m) = match_lhs(&lhs.lhs, k.clone(), path)?;
+        if let Some(res) = res {
+            path.push((m, v));
 
-fn eval_rhs_target<'a>(val: &Val, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
-    match val {
-        Val::Rhs(rhs) => eval_rhs_to_ref(rhs, path),
-        Val::Obj(obj) => Err(Error::UnexpectedObjectInRhs),
-    }
-}
+            match rhs {
+                Val::Obj(inner) => {
+                    if matches!(res, MatchResult::OutputVal(_)) {
+                        return Err(Error::UnexpectedObjectInRhs);
+                    }
 
-fn eval_rhs_expr(rhs: &Rhs, path: &mut [(Vec<&str>, &Value)]) -> Result<Value> {
-    eval_rhs_to_ref(rhs, path).map(|v| Value::clone(v))
-}
-
-fn eval_rhs_to_ref<'a>(rhs: &Rhs, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
-    let mut iter = rhs.0.iter();
-
-    while let Some(entry) = iter.next() {
-        match entry {
-            RhsEntry::Dot => (),
-            RhsEntry::Index(index_op) => match index_op {
-                IndexOp::Square(idx) => {}
-                IndexOp::Amp(idx0, idx1) => {}
-                IndexOp::Literal(idx) => {}
-                IndexOp::Empty => {}
-            },
-            _ => return Err(Error::UnexpectedRhsEntry),
-        }
-
-        let entry = iter.next().ok_or(Error::UnexpectedEndOfRhs)?;
-
-        match entry {
-            RhsEntry::Amp(idx0, idx1) => {
-                let m = get_match((*idx0, *idx1), path)?;
+                    apply(inner, path, out)?;
+                }
+                Val::Rhs(rhs) => match res {
+                    MatchResult::OutputInputValue => {
+                        todo!();
+                    }
+                    MatchResult::OutputVal(v) => {
+                        todo!();
+                    }
+                },
             }
-            RhsEntry::At(at) => {}
-            RhsEntry::Key(key) => {}
-            _ => return Err(Error::UnexpectedRhsEntry),
+
+            path.pop().unwrap();
+
+            if !matches!(res, MatchResult::OutputVal(_)) {
+                break;
+            }
         }
     }
 
-    Ok(current)
+    Ok(())
 }
 
 #[derive(PartialEq)]
 enum MatchResult {
-    NoMatch,
     // output value of input to the path specified by rhs if rhs is an expression
     // if rhs is an object keep going down the tree
     OutputInputValue,
@@ -139,22 +130,25 @@ enum MatchResult {
     OutputVal(Value),
 }
 
-fn match_lhs<'b, 'a: 'b>(
-    lhs: &'a Lhs,
-    k: &'a str,
-    path: &'b [(Vec<&'a str>, &'a Value)],
-) -> Result<(MatchResult, Vec<&'a str>)> {
+fn match_lhs<'ctx, 'input: 'ctx>(
+    lhs: &'input Lhs,
+    k: Cow<'input, str>,
+    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
+) -> Result<(Option<MatchResult>, Vec<Cow<'input, str>>)> {
     match lhs {
         Lhs::DollarSign(path_idx, match_idx) => {
             let m = get_match((*path_idx, *match_idx), path)?;
-            Ok((MatchResult::OutputVal(Value::String(m.to_owned())), vec![k]))
+            Ok((
+                Some(MatchResult::OutputVal(Value::String(m.into()))),
+                vec![k],
+            ))
         }
         Lhs::Amp(path_idx, match_idx) => {
             let m = get_match((*path_idx, *match_idx), path)?;
             if m == k {
-                Ok((MatchResult::OutputInputValue, vec![k]))
+                Ok((Some(MatchResult::OutputInputValue), vec![k]))
             } else {
-                Ok((MatchResult::NoMatch, Vec::new()))
+                Ok((None, Vec::new()))
             }
         }
         Lhs::At(at) => {
@@ -163,42 +157,56 @@ fn match_lhs<'b, 'a: 'b>(
                 None => Value::clone(path.last().unwrap().1),
             };
 
-            Ok((MatchResult::OutputVal(val), vec![k]))
+            Ok((Some(MatchResult::OutputVal(val)), vec![k]))
         }
         Lhs::Square(lit) => Ok((
-            MatchResult::OutputVal(Value::String(lit.to_owned())),
+            Some(MatchResult::OutputVal(Value::String(lit.to_owned()))),
             vec![k],
         )),
         Lhs::Pipes(pipes) => {
             for stars in pipes.iter() {
-                if let Some(m) = match_stars(&stars.0, k) {
-                    return Ok((MatchResult::OutputInputValue, m));
+                if let Some(m) = match_stars(&stars.0, k.clone()) {
+                    return Ok((Some(MatchResult::OutputInputValue), m));
                 }
             }
-            Ok((MatchResult::NoMatch, Vec::new()))
+            Ok((None, Vec::new()))
         }
     }
 }
 
-fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
+fn match_stars<'ctx, 'input: 'ctx>(
+    stars: &'input [String],
+    k: Cow<'input, str>,
+) -> Option<Vec<Cow<'input, str>>> {
     if stars.is_empty() {
-        return if k.is_empty() { Some(vec![""]) } else { None };
+        return if k.is_empty() {
+            Some(vec!["".into()])
+        } else {
+            None
+        };
     }
 
-    let mut k = k.strip_prefix(stars[0].as_str())?;
+    let mut k: Cow<'input, str> = match k {
+        Cow::Borrowed(s) => Cow::Borrowed(s.strip_prefix(stars[0].as_str())?),
+        Cow::Owned(s) => Cow::Owned(s.strip_prefix(stars[0].as_str())?.to_owned()),
+    };
 
-    let mut m = vec![k];
+    let mut m = vec![k.clone()];
 
     for pattern in stars.iter() {
-        if pattern.is_empty() {
-            m.push(k);
-        } else {
+        if !pattern.is_empty() {
             match k.find(pattern.as_str()) {
                 None => return None,
-                Some(idx) => {
-                    m.push(&k[..idx]);
-                    k = &k[idx..];
-                }
+                Some(idx) => match &k {
+                    Cow::Borrowed(s) => {
+                        m.push(Cow::Borrowed(&s[..idx]));
+                        k = Cow::Borrowed(&s[idx..]);
+                    }
+                    Cow::Owned(s) => {
+                        m.push(Cow::Owned(s[..idx].to_owned()));
+                        k = Cow::Owned(s[idx..].to_owned());
+                    }
+                },
             }
         }
     }
@@ -206,10 +214,10 @@ fn match_stars<'a>(stars: &'a [String], k: &'a str) -> Option<Vec<&'a str>> {
     Some(m)
 }
 
-fn get_match<'b, 'a: 'b>(
+fn get_match<'ctx, 'input: 'ctx>(
     idx: (usize, usize),
-    path: &'b [(Vec<&'a str>, &'a Value)],
-) -> Result<&'a str> {
+    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
+) -> Result<Cow<'input, str>> {
     if idx.0 >= path.len() {
         return Err(Error::PathIndexOutOfRange {
             idx: idx.0,
@@ -224,7 +232,7 @@ fn get_match<'b, 'a: 'b>(
         len: path.len(),
     })?;
 
-    Ok(*m)
+    Ok(m.clone())
 }
 
 pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
