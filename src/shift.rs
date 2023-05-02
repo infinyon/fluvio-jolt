@@ -59,13 +59,21 @@ fn apply<'ctx, 'input: 'ctx>(
         Value::Array(arr) => {
             for (k, v) in arr.iter().enumerate() {
                 let k = k.to_string();
-                match_obj_and_key(obj, path, k.into(), v, out)?;
+                match_obj_and_key(
+                    obj,
+                    path,
+                    // this makes the downstream functions to do some extra allocations.
+                    // could avoid some of these allocations by mapping some small indexes to static str's
+                    Cow::Owned(k),
+                    v,
+                    out,
+                )?;
             }
         }
         Value::Number(n) => {
             let k = n.to_string();
 
-            match_obj_and_key(obj, path, k.into(), input.1, out)?;
+            match_obj_and_key(obj, path, Cow::Owned(k), input.1, out)?;
         }
         Value::String(k) => {
             match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
