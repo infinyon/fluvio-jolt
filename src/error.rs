@@ -11,6 +11,8 @@ pub enum Error {
     UnexpectedEndOfRhs,
     #[error("Unexpected right hand side expression.")]
     UnexpectedRhsEntry,
+    #[error("Unexpected object in right hand side.")]
+    UnexpectedObjectInRhs,
 }
 
 pub type Result<T> = StdResult<T, Error>;

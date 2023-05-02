@@ -25,85 +25,91 @@ pub struct Shift(Obj);
 impl Transform for Shift {
     fn apply(&self, val: &Value) -> Result<Value> {
         let mut path = vec![(vec![ROOT_KEY], val)];
-        let out = apply(&self.0, &mut path);
+
+        let mut out = serde_json::Map::new();
+        apply(&self.0, &mut path, &mut out)?;
 
         path.pop().unwrap();
         assert!(path.is_empty());
 
-        out
+        Ok(Value::Object(out))
     }
 }
 
-fn apply<'b, 'a: 'b>(obj: &'a Obj, path: &'b mut Vec<(Vec<&'a str>, &'a Value)>) -> Result<Value> {
+fn apply<'b, 'a: 'b>(
+    obj: &'a Obj,
+    path: &'b mut Vec<(Vec<&'a str>, &'a Value)>,
+    out: &'b mut serde_json::Map<String, Value>,
+) -> Result<()> {
     let input = path.last().unwrap();
 
-    let input = match input.1 {
-        Value::Object(input) => input,
-        _ => return Ok(Value::clone(input.1)),
-    };
-
-    let mut output = serde_json::Map::new();
-
-    for (k, v) in input.iter() {
-        // TODO: apply specific ordering when iterating obj
-        for (lhs, rhs) in obj {
-            let (res, m) = match_lhs(&lhs.lhs, k, path)?;
-            path.push((m, v));
-            match res {
-                MatchResult::OutputStr(k) => {
-                    let target = eval_rhs_target(rhs, path)?;
-                    *target = Value::String(k.to_owned());
-                }
-                MatchResult::OutputValue => {
-                    let target = eval_rhs_target(rhs, path)?;
-                    *target = Value::clone(v);
-                }
-                MatchResult::OutputRhs => {
-                    output[k] = eval_rhs(rhs, path)?;
-                }
-                MatchResult::OutputAt(idx, rhs_expr) => {
-                    let target = eval_rhs_target(rhs, path)?;
-
-                    if path.len() <= idx {
-                        return Err(Error::PathIndexOutOfRange {
-                            idx,
-                            len: path.len(),
-                        });
-                    }
-
-                    let path = path[..path.len() - idx - 1].to_vec();
-
-                    *target = eval_rhs_expr(rhs_expr, &path)?;
-                }
-                MatchResult::NoMatch => (),
-            }
-            path.pop().unwrap();
-
-            if res != MatchResult::NoMatch {
-                break;
+    match input.1 {
+        Value::Object(input) => {
+            for (k, v) in input.iter() {
+                match_obj_and_key(obj, path, k, Some(v), out)?;
             }
         }
-    }
+        Value::Bool(b) => {
+            let k = if *b { "true" } else { "false" };
 
-    Ok(Value::Object(output))
+            match_obj_and_key(obj, path, k, None, out)?;
+        }
+        Value::Array(arr) => {
+            for (k, v) in arr.iter().enumerate() {
+                let k = k.to_string();
+                match_obj_and_key(obj, path, &k, Some(v), out)?;
+            }
+        }
+        Value::Number(n) => {
+            let k = n.to_string();
+
+            match_obj_and_key(obj, path, &k, None, out)?;
+        }
+        Value::String(k) => {
+            match_obj_and_key(obj, path, k, None, out)?;
+        }
+        Value::Null => {
+            let k = "null";
+            match_obj_and_key(obj, path, k, None, out)?;
+        }
+    };
+
+    Ok(())
 }
 
-fn eval_rhs(rhs: &Val, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
+fn match_obj_and_key<'b, 'a: 'b>(
+    obj: &'a Obj,
+    path: &'b mut Vec<(Vec<&'a str>, &'a Value)>,
+    k: &'a str,
+    v: Option<&'a Value>,
+    out: &'b mut serde_json::Map<String, Value>,
+) -> Result<Value> {
     todo!()
 }
 
-fn eval_rhs_expr(rhs: &Rhs, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
-    let mut iter = rhs.0.iter().skip(1);
+fn eval_rhs_target<'a>(val: &Val, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
+    match val {
+        Val::Rhs(rhs) => eval_rhs_to_ref(rhs, path),
+        Val::Obj(obj) => Err(Error::UnexpectedObjectInRhs),
+    }
+}
 
-    let mut current = Value::Null;
+fn eval_rhs_expr(rhs: &Rhs, path: &mut [(Vec<&str>, &Value)]) -> Result<Value> {
+    eval_rhs_to_ref(rhs, path).map(|v| Value::clone(v))
+}
+
+fn eval_rhs_to_ref<'a>(rhs: &Rhs, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
+    let mut iter = rhs.0.iter();
 
     while let Some(entry) = iter.next() {
         match entry {
             RhsEntry::Dot => (),
-            RhsEntry::Index(index_op) => {
-                match index_op {
-                }
-            }
+            RhsEntry::Index(index_op) => match index_op {
+                IndexOp::Square(idx) => {}
+                IndexOp::Amp(idx0, idx1) => {}
+                IndexOp::Literal(idx) => {}
+                IndexOp::Empty => {}
+            },
             _ => return Err(Error::UnexpectedRhsEntry),
         }
 
@@ -112,7 +118,6 @@ fn eval_rhs_expr(rhs: &Rhs, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
         match entry {
             RhsEntry::Amp(idx0, idx1) => {
                 let m = get_match((*idx0, *idx1), path)?;
-
             }
             RhsEntry::At(at) => {}
             RhsEntry::Key(key) => {}
@@ -123,49 +128,51 @@ fn eval_rhs_expr(rhs: &Rhs, path: &[(Vec<&str>, &Value)]) -> Result<Value> {
     Ok(current)
 }
 
-fn eval_rhs_target<'a>(rhs: &Val, path: &mut [(Vec<&str>, &'a Value)]) -> Result<&'a mut Value> {
-    todo!()
-}
-
 #[derive(PartialEq)]
-enum MatchResult<'a> {
+enum MatchResult {
     NoMatch,
-    // output this str to the path specified by rhs
-    OutputStr(&'a str),
-    // output value of input to the path specified by rhs
-    OutputValue,
-    // evaluate rhs and output the result to input key
-    OutputRhs,
-    OutputAt(usize, &'a Rhs),
+    // output value of input to the path specified by rhs if rhs is an expression
+    // if rhs is an object keep going down the tree
+    OutputInputValue,
+    // output this value to the path specified by the right hand side
+    // the right hand side must be an expression
+    OutputVal(Value),
 }
 
 fn match_lhs<'b, 'a: 'b>(
     lhs: &'a Lhs,
     k: &'a str,
     path: &'b [(Vec<&'a str>, &'a Value)],
-) -> Result<(MatchResult<'a>, Vec<&'a str>)> {
+) -> Result<(MatchResult, Vec<&'a str>)> {
     match lhs {
         Lhs::DollarSign(path_idx, match_idx) => {
             let m = get_match((*path_idx, *match_idx), path)?;
-            Ok((MatchResult::OutputStr(m), vec![k]))
+            Ok((MatchResult::OutputVal(Value::String(m.to_owned())), vec![k]))
         }
         Lhs::Amp(path_idx, match_idx) => {
             let m = get_match((*path_idx, *match_idx), path)?;
             if m == k {
-                Ok((MatchResult::OutputRhs, vec![k]))
+                Ok((MatchResult::OutputInputValue, vec![k]))
             } else {
                 Ok((MatchResult::NoMatch, Vec::new()))
             }
         }
-        Lhs::At(at) => match at {
-            Some((idx, rhs)) => Ok((MatchResult::OutputAt(*idx, rhs), vec![k])),
-            None => Ok((MatchResult::OutputValue, vec![k])),
-        },
-        Lhs::Square(lit) => Ok((MatchResult::OutputStr(lit), vec![k])),
+        Lhs::At(at) => {
+            let val = match at {
+                Some(at) => todo!(),
+                None => Value::clone(path.last().unwrap().1),
+            };
+
+            Ok((MatchResult::OutputVal(val), vec![k]))
+        }
+        Lhs::Square(lit) => Ok((
+            MatchResult::OutputVal(Value::String(lit.to_owned())),
+            vec![k],
+        )),
         Lhs::Pipes(pipes) => {
             for stars in pipes.iter() {
                 if let Some(m) = match_stars(&stars.0, k) {
-                    return Ok((MatchResult::OutputRhs, m));
+                    return Ok((MatchResult::OutputInputValue, m));
                 }
             }
             Ok((MatchResult::NoMatch, Vec::new()))
