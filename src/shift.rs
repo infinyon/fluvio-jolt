@@ -99,27 +99,29 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
         if let Some(res) = res {
             path.push((m, v));
 
+            let lhs_is_match_all = matches!(res, MatchResult::OutputVal(_));
+
             match rhs {
                 Val::Obj(inner) => {
-                    if matches!(res, MatchResult::OutputVal(_)) {
+                    if lhs_is_match_all {
                         return Err(Error::UnexpectedObjectInRhs);
                     }
 
                     apply(inner, path, out)?;
                 }
-                Val::Rhs(rhs) => match res {
-                    MatchResult::OutputInputValue => {
-                        todo!();
-                    }
-                    MatchResult::OutputVal(v) => {
-                        todo!();
-                    }
-                },
+                Val::Rhs(rhs) => {
+                    let v = match res {
+                        MatchResult::OutputInputValue => v.clone(),
+                        MatchResult::OutputVal(v) => v,
+                    };
+
+                    insert_val_to_rhs(rhs, v, out)?;
+                }
             }
 
             path.pop().unwrap();
 
-            if !matches!(res, MatchResult::OutputVal(_)) {
+            if !lhs_is_match_all {
                 break;
             }
         }
@@ -153,6 +155,10 @@ fn eval_rhs(rhs: &Rhs, v: &Value) -> Result<Value> {
 
     while let Some(entry) = iter.next() {}
 
+    todo!()
+}
+
+fn insert_val_to_rhs(rhs: &Rhs, v: Value, out: &mut Value) -> Result<()> {
     todo!()
 }
 
