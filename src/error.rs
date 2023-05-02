@@ -21,6 +21,8 @@ pub enum Error {
     ArrIndexOutOfRange { idx: usize, len: usize },
     #[error("Json value can't be used as an index: {0:?}")]
     InvalidIndexVal(serde_json::Value),
+    #[error("Key not found in object:{0}")]
+    KeyNotFound(String),
 }
 
 pub type Result<T> = StdResult<T, Error>;

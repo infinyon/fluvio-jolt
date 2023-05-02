@@ -145,7 +145,7 @@ fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)])
 
     let v = &path[path.len() - at.0 - 1];
 
-    eval_rhs(&at.1, &v.1, path)
+    eval_rhs(&at.1, v.1, path)
 }
 
 fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
@@ -190,12 +190,52 @@ fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Resul
                     }
                 }
             }
-            RhsPart::CompositeKey(entries) => {}
-            RhsPart::Key(entry) => {}
+            RhsPart::CompositeKey(entries) => {
+                let mut key = String::new();
+
+                for entry in entries {
+                    let cow = rhs_entry_to_cow(entry, path)?;
+                    key += cow.as_ref();
+                }
+
+                v = key_into_object(v, &key)?;
+            }
+            RhsPart::Key(entry) => {
+                let cow = rhs_entry_to_cow(entry, path)?;
+                v = key_into_object(v, cow.as_ref())?;
+            }
         }
     }
 
     Ok(Value::clone(v))
+}
+
+fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
+    entry: &'input RhsEntry,
+    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
+) -> Result<Cow<'input, str>> {
+    let cow = match entry {
+        RhsEntry::Amp(idx0, idx1) => get_match((*idx0, *idx1), path)?,
+        RhsEntry::At(at) => {
+            let key = eval_at(at, path)?;
+            match key {
+                Value::String(s) => Cow::Owned(s),
+                _ => return Err(Error::UnexpectedRhsEntry),
+            }
+        }
+        RhsEntry::Key(key) => Cow::Borrowed(key.as_str()),
+    };
+
+    Ok(cow)
+}
+
+fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value> {
+    let obj = v.as_object().ok_or(Error::UnexpectedRhsEntry)?;
+
+    match obj.get(key) {
+        Some(v) => Ok(v),
+        None => Err(Error::KeyNotFound(key.to_owned())),
+    }
 }
 
 fn insert_val_to_rhs(rhs: &Rhs, v: Value, out: &mut Value) -> Result<()> {
