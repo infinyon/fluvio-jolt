@@ -67,28 +67,67 @@ impl<'input> Parser<'input> {
             });
         }
 
-        let mut entries = Vec::new();
+        let mut parts = Vec::new();
+
+        while let Some(token) = self.input.peek() {
+            let token = token?;
+            let part = match &token.kind {
+                TokenKind::OpenBrkt => {
+                    let idx_op = self.parse_index_op(depth)?;
+                    RhsPart::Index(idx_op)
+                }
+                TokenKind::Dot | TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => {
+                    if token.kind == TokenKind::Dot && parts.is_empty() {
+                        return Err(ParseError {
+                            pos: token.pos,
+                            cause: ParseErrorCause::UnexpectedToken(
+                                self.input.next().unwrap().unwrap(),
+                            )
+                            .into(),
+                        });
+                    }
+
+                    self.assert_next(TokenKind::Dot)?;
+
+                    self.parse_rhs_part(depth)?
+                }
+                _ => {
+                    return Err(ParseError {
+                        pos: token.pos,
+                        cause: ParseErrorCause::UnexpectedToken(
+                            self.input.next().unwrap().unwrap(),
+                        )
+                        .into(),
+                    });
+                }
+            };
+        }
+
+        Ok(Rhs(parts))
+    }
+
+    fn parse_rhs_part(&mut self, depth: usize) -> Result<RhsPart> {
+        let mut entries: Vec<RhsEntry> = Vec::new();
 
         while let Some(token) = self.input.peek() {
             let token = token?;
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
                 TokenKind::At => self.parse_at(0).map(RhsEntry::At),
-                TokenKind::OpenBrkt => self.parse_index_op(depth).map(RhsEntry::Index),
-                TokenKind::Dot => {
-                    self.assert_next(TokenKind::Dot)?;
-                    Ok(RhsEntry::Dot)
-                }
                 TokenKind::Key(_) => self.parse_key().map(RhsEntry::Key),
-                _ => {
-                    return Ok(Rhs(entries));
-                }
+                _ => break,
             }?;
 
             entries.push(res);
         }
 
-        Ok(Rhs(entries))
+        let part = match entries.len() {
+            0 => RhsPart::Key(RhsEntry::Key("".to_owned())),
+            1 => RhsPart::Key(entries.remove(0)),
+            _ => RhsPart::CompositeKey(entries),
+        };
+
+        Ok(part)
     }
 
     fn assert_next(&mut self, expected: TokenKind) -> Result<()> {
@@ -228,7 +267,7 @@ impl<'input> Parser<'input> {
                 }
                 let mut rhs = rhs;
                 let idx = match rhs.0.pop().unwrap() {
-                    RhsEntry::Key(key) => key.parse().map_err(|e| ParseError {
+                    RhsPart::Key(RhsEntry::Key(key)) => key.parse().map_err(|e| ParseError {
                         pos: token.pos,
                         cause: Box::new(ParseErrorCause::InvalidIndex(e)),
                     })?,
