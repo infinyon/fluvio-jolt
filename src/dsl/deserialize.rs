@@ -7,12 +7,12 @@ use serde::{de::Deserializer, Deserialize};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LhsWithHash {
     pub lhs: Lhs,
-    pub hash: u64,
+    pub input: String,
 }
 
 impl Hash for LhsWithHash {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_u64(self.hash)
+        self.input.hash(state)
     }
 }
 
@@ -47,9 +47,10 @@ impl<'de> Visitor<'de> for LhsVisitor {
         E: de::Error,
     {
         let lhs = Lhs::parse(value).map_err(|e| E::custom(e.to_string()))?;
-        let hash = xxhash_rust::xxh3::xxh3_64(value.as_bytes());
-
-        Ok(LhsWithHash { lhs, hash })
+        Ok(LhsWithHash {
+            lhs,
+            input: value.to_owned(),
+        })
     }
 }
 
