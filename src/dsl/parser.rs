@@ -2,7 +2,7 @@ use super::error::{ParseErrorCause, ParseError};
 use super::token::{Token, TokenKind};
 use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
-use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, Stars};
+use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, Stars, RhsPart};
 
 const MAX_DEPTH: usize = 4;
 
@@ -28,7 +28,7 @@ impl<'input> Parser<'input> {
 
         let res = match token.kind {
             TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
-            TokenKind::At => self.parse_at().map(Lhs::At),
+            TokenKind::At => self.parse_at(0).map(Lhs::At),
             TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
             _ => self.parse_pipes().map(Lhs::Pipes),
@@ -73,7 +73,7 @@ impl<'input> Parser<'input> {
             let token = token?;
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                TokenKind::At => self.parse_at().map(RhsEntry::At),
+                TokenKind::At => self.parse_at(0).map(RhsEntry::At),
                 TokenKind::OpenBrkt => self.parse_index_op(depth).map(RhsEntry::Index),
                 TokenKind::Dot => {
                     self.assert_next(TokenKind::Dot)?;

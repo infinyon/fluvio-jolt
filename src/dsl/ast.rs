@@ -20,8 +20,9 @@ impl Lhs {
 pub struct Stars(pub Vec<String>);
 
 #[derive(Debug, PartialEq, Clone, Eq)]
-pub struct Rhs(pub Vec<RhsEntry>);
+pub struct Rhs(pub Vec<RhsPart>);
 
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsPart {
     Index(IndexOp),
     CompositeKey(Vec<RhsEntry>),
