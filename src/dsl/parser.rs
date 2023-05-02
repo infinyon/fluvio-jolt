@@ -4,7 +4,7 @@ use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
 use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, Stars};
 
-const MAX_DEPTH: usize = 32;
+const MAX_DEPTH: usize = 4;
 
 type Result<T> = StdResult<T, ParseError>;
 
