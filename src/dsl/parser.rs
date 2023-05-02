@@ -4,6 +4,8 @@ use super::tokenizer::Tokenizer;
 use std::result::Result as StdResult;
 use super::ast::{Lhs, Rhs, IndexOp, RhsEntry, Stars};
 
+const MAX_DEPTH: usize = 32;
+
 type Result<T> = StdResult<T, ParseError>;
 
 pub struct Parser<'input> {
@@ -44,7 +46,7 @@ impl<'input> Parser<'input> {
     }
 
     pub fn parse_rhs(&mut self) -> Result<Rhs> {
-        let rhs = self.parse_rhs_impl()?;
+        let rhs = self.parse_rhs_impl(0)?;
 
         if let Some(token) = self.input.next() {
             let token = token?;
@@ -57,7 +59,14 @@ impl<'input> Parser<'input> {
         Ok(rhs)
     }
 
-    fn parse_rhs_impl(&mut self) -> Result<Rhs> {
+    fn parse_rhs_impl(&mut self, depth: usize) -> Result<Rhs> {
+        if depth > MAX_DEPTH {
+            return Err(ParseError {
+                pos: self.input.pos(),
+                cause: ParseErrorCause::MaximumRecursion(MAX_DEPTH).into(),
+            });
+        }
+
         let mut entries = Vec::new();
 
         while let Some(token) = self.input.peek() {
@@ -65,7 +74,7 @@ impl<'input> Parser<'input> {
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
                 TokenKind::At => self.parse_at().map(RhsEntry::At),
-                TokenKind::OpenBrkt => self.parse_index_op().map(RhsEntry::Index),
+                TokenKind::OpenBrkt => self.parse_index_op(depth).map(RhsEntry::Index),
                 TokenKind::Dot => {
                     self.assert_next(TokenKind::Dot)?;
                     Ok(RhsEntry::Dot)
@@ -112,7 +121,7 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_index_op(&mut self) -> Result<IndexOp> {
+    fn parse_index_op(&mut self, depth: usize) -> Result<IndexOp> {
         self.assert_next(TokenKind::OpenBrkt)?;
 
         let pos = self.input.pos();
@@ -137,7 +146,7 @@ impl<'input> Parser<'input> {
                 IndexOp::Literal(idx)
             }
             TokenKind::At => {
-                let at = self.parse_at()?;
+                let at = self.parse_at(depth)?;
                 IndexOp::At(at)
             }
             _ => {
@@ -172,7 +181,7 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_at(&mut self) -> Result<Option<(usize, Box<Rhs>)>> {
+    fn parse_at(&mut self, depth: usize) -> Result<Option<(usize, Box<Rhs>)>> {
         self.assert_next(TokenKind::At)?;
 
         let token = match self.input.peek() {
@@ -185,7 +194,7 @@ impl<'input> Parser<'input> {
             assert_close_prnth = true;
         }
 
-        let rhs = self.parse_rhs_impl()?;
+        let rhs = self.parse_rhs_impl(depth + 1)?;
 
         let token = match self.input.peek() {
             Some(token) => token?,
@@ -234,7 +243,7 @@ impl<'input> Parser<'input> {
                     }
                 };
                 self.assert_next(TokenKind::Comma)?;
-                let rhs = self.parse_rhs_impl()?;
+                let rhs = self.parse_rhs_impl(depth + 1)?;
                 if assert_close_prnth {
                     self.assert_next(TokenKind::ClosePrnth)?;
                 }

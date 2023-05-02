@@ -22,13 +22,17 @@ pub struct Stars(pub Vec<String>);
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Rhs(pub Vec<RhsEntry>);
 
+pub enum RhsPart {
+    Index(IndexOp),
+    CompositeKey(Vec<RhsEntry>),
+    Key(RhsEntry),
+}
+
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, Box<Rhs>)>),
-    Index(IndexOp),
     Key(String),
-    Dot,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq)]

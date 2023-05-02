@@ -20,6 +20,8 @@ pub enum ParseErrorCause {
     UnexpectedToken(Token),
     #[error("Invalid index literal: {0}")]
     InvalidIndex(ParseIntError),
+    #[error("Maximum recursion depth ({0}) reached.")]
+    MaximumRecursion(usize),
 }
 
 impl fmt::Display for ParseError {
