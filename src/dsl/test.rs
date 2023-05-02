@@ -1,4 +1,4 @@
-use super::ast::{Rhs, Lhs, Stars, IndexOp, RhsEntry};
+use super::ast::{Rhs, Lhs, Stars, IndexOp, RhsEntry, RhsPart};
 
 struct LhsTestCase<'a> {
     expr: &'a str,
@@ -202,18 +202,21 @@ fn test_parse_lhs_dollar_sign_full() {
 fn test_parse_lhs_misc() {
     LhsTestCase {
         expr: "@&1",
-        expected: Lhs::At(Some((0, Box::new(Rhs(vec![RhsEntry::Amp(1, 0)]))))),
+        expected: Lhs::At(Some((
+            0,
+            Box::new(Rhs(vec![RhsPart::Key(RhsEntry::Amp(1, 0))])),
+        ))),
     }
     .run();
     LhsTestCase {
         expr: "@(2,clone&(1,1)_GCPerProIdenInfoPhyInfoStreet)",
         expected: Lhs::At(Some((
             2,
-            Box::new(Rhs(vec![
+            Box::new(Rhs(vec![RhsPart::CompositeKey(vec![
                 RhsEntry::Key("clone".into()),
                 RhsEntry::Amp(1, 1),
                 RhsEntry::Key("_GCPerProIdenInfoPhyInfoStreet".into()),
-            ])),
+            ])])),
         ))),
     }
     .run();
@@ -242,7 +245,7 @@ impl<'a> RhsTestCase<'a> {
 
 impl From<&str> for Box<Rhs> {
     fn from(s: &str) -> Box<Rhs> {
-        Box::new(Rhs(vec![RhsEntry::Key(s.into())]))
+        Box::new(Rhs(vec![RhsPart::Key(RhsEntry::Key(s.into()))]))
     }
 }
 
@@ -250,7 +253,7 @@ impl From<&str> for Box<Rhs> {
 fn test_parse_rhs_amp_short() {
     RhsTestCase {
         expr: "&",
-        expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Amp(0, 0))]),
     }
     .run();
 }
@@ -259,7 +262,7 @@ fn test_parse_rhs_amp_short() {
 fn test_parse_rhs_amp_short_troll() {
     RhsTestCase {
         expr: "&(12)",
-        expected: Rhs(vec![RhsEntry::Amp(12, 0)]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Amp(12, 0))]),
     }
     .run();
 }
@@ -268,7 +271,7 @@ fn test_parse_rhs_amp_short_troll() {
 fn test_parse_rhs_at_full() {
     RhsTestCase {
         expr: "@(0,qwe)",
-        expected: Rhs(vec![RhsEntry::At(Some((0, "qwe".into())))]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::At(Some((0, "qwe".into()))))]),
     }
     .run();
 }
@@ -278,8 +281,8 @@ fn test_parse_rhs_at_idx_square() {
     RhsTestCase {
         expr: "@(0,qwe)[#15]",
         expected: Rhs(vec![
-            RhsEntry::At(Some((0, "qwe".into()))),
-            RhsEntry::Index(IndexOp::Square(15)),
+            RhsPart::Key(RhsEntry::At(Some((0, "qwe".into())))),
+            RhsPart::Index(IndexOp::Square(15)),
         ]),
     }
     .run();
@@ -290,8 +293,8 @@ fn test_parse_rhs_at_idx_amp() {
     RhsTestCase {
         expr: "@(0,qwe)[&(1,2)]",
         expected: Rhs(vec![
-            RhsEntry::At(Some((0, "qwe".into()))),
-            RhsEntry::Index(IndexOp::Amp(1, 2)),
+            RhsPart::Key(RhsEntry::At(Some((0, "qwe".into())))),
+            RhsPart::Index(IndexOp::Amp(1, 2)),
         ]),
     }
     .run();
@@ -302,8 +305,8 @@ fn test_parse_rhs_at_idx_lit() {
     RhsTestCase {
         expr: "@(0,qwe)[27]",
         expected: Rhs(vec![
-            RhsEntry::At(Some((0, "qwe".into()))),
-            RhsEntry::Index(IndexOp::Literal(27)),
+            RhsPart::Key(RhsEntry::At(Some((0, "qwe".into())))),
+            RhsPart::Index(IndexOp::Literal(27)),
         ]),
     }
     .run();
@@ -314,9 +317,8 @@ fn test_parse_rhs_key() {
     RhsTestCase {
         expr: "hello.world",
         expected: Rhs(vec![
-            RhsEntry::Key("hello".into()),
-            RhsEntry::Dot,
-            RhsEntry::Key("world".into()),
+            RhsPart::Key(RhsEntry::Key("hello".into())),
+            RhsPart::Key(RhsEntry::Key("world".into())),
         ]),
     }
     .run();
@@ -327,10 +329,9 @@ fn test_parse_rhs_key_idx_lit() {
     RhsTestCase {
         expr: "hello.world[13]",
         expected: Rhs(vec![
-            RhsEntry::Key("hello".into()),
-            RhsEntry::Dot,
-            RhsEntry::Key("world".into()),
-            RhsEntry::Index(IndexOp::Literal(13)),
+            RhsPart::Key(RhsEntry::Key("hello".into())),
+            RhsPart::Key(RhsEntry::Key("world".into())),
+            RhsPart::Index(IndexOp::Literal(13)),
         ]),
     }
     .run();
@@ -341,124 +342,121 @@ fn test_parse_rhs_misc() {
     RhsTestCase {
         expr: "photos[&1].id",
         expected: Rhs(vec![
-            RhsEntry::Key("photos".into()),
-            RhsEntry::Index(IndexOp::Amp(1, 0)),
-            RhsEntry::Dot,
-            RhsEntry::Key("id".into()),
+            RhsPart::Key(RhsEntry::Key("photos".into())),
+            RhsPart::Index(IndexOp::Amp(1, 0)),
+            RhsPart::Key(RhsEntry::Key("id".into())),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "photos[&3].sizes.&1",
         expected: Rhs(vec![
-            RhsEntry::Key("photos".into()),
-            RhsEntry::Index(IndexOp::Amp(3, 0)),
-            RhsEntry::Dot,
-            RhsEntry::Key("sizes".into()),
-            RhsEntry::Dot,
-            RhsEntry::Amp(1, 0),
+            RhsPart::Key(RhsEntry::Key("photos".into())),
+            RhsPart::Index(IndexOp::Amp(3, 0)),
+            RhsPart::Key(RhsEntry::Key("sizes".into())),
+            RhsPart::Key(RhsEntry::Amp(1, 0)),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "This is a review",
-        expected: Rhs(vec![RhsEntry::Key("This is a review".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("This is a review".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "rating-&",
-        expected: Rhs(vec![RhsEntry::Key("rating-".into()), RhsEntry::Amp(0, 0)]),
+        expected: Rhs(vec![RhsPart::CompositeKey(vec![
+            RhsEntry::Key("rating-".into()),
+            RhsEntry::Amp(0, 0),
+        ])]),
     }
     .run();
     RhsTestCase {
         expr: "listOfFooValues[]",
         expected: Rhs(vec![
-            RhsEntry::Key("listOfFooValues".into()),
-            RhsEntry::Index(IndexOp::Empty),
+            RhsPart::Key(RhsEntry::Key("listOfFooValues".into())),
+            RhsPart::Index(IndexOp::Empty),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "sillyListOfTunaIds[].id",
         expected: Rhs(vec![
-            RhsEntry::Key("sillyListOfTunaIds".into()),
-            RhsEntry::Index(IndexOp::Empty),
-            RhsEntry::Dot,
-            RhsEntry::Key("id".into()),
+            RhsPart::Key(RhsEntry::Key("sillyListOfTunaIds".into())),
+            RhsPart::Index(IndexOp::Empty),
+            RhsPart::Key(RhsEntry::Key("id".into())),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "photo-&-url",
-        expected: Rhs(vec![
+        expected: Rhs(vec![RhsPart::CompositeKey(vec![
             RhsEntry::Key("photo-".into()),
             RhsEntry::Amp(0, 0),
             RhsEntry::Key("-url".into()),
-        ]),
+        ])]),
     }
     .run();
     RhsTestCase {
         expr: "9876",
-        expected: Rhs(vec![RhsEntry::Key("9876".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("9876".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "&[]",
-        expected: Rhs(vec![RhsEntry::Amp(0, 0), RhsEntry::Index(IndexOp::Empty)]),
+        expected: Rhs(vec![
+            RhsPart::Key(RhsEntry::Amp(0, 0)),
+            RhsPart::Index(IndexOp::Empty),
+        ]),
     }
     .run();
     RhsTestCase {
         expr: "clients.@(3,clientId)",
         expected: Rhs(vec![
-            RhsEntry::Key("clients".into()),
-            RhsEntry::Dot,
-            RhsEntry::At(Some((3, "clientId".into()))),
+            RhsPart::Key(RhsEntry::Key("clients".into())),
+            RhsPart::Key(RhsEntry::At(Some((3, "clientId".into())))),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "&1.&3.[]",
         expected: Rhs(vec![
-            RhsEntry::Amp(1, 0),
-            RhsEntry::Dot,
-            RhsEntry::Amp(3, 0),
-            RhsEntry::Dot,
-            RhsEntry::Index(IndexOp::Empty),
+            RhsPart::Key(RhsEntry::Amp(1, 0)),
+            RhsPart::Key(RhsEntry::Amp(3, 0)),
+            RhsPart::Index(IndexOp::Empty),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "&",
-        expected: Rhs(vec![RhsEntry::Amp(0, 0)]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Amp(0, 0))]),
     }
     .run();
     RhsTestCase {
         expr: "sillyPhotoData.@(captions[1])",
         expected: Rhs(vec![
-            RhsEntry::Key("sillyPhotoData".into()),
-            RhsEntry::Dot,
-            RhsEntry::At(Some((
+            RhsPart::Key(RhsEntry::Key("sillyPhotoData".into())),
+            RhsPart::Key(RhsEntry::At(Some((
                 0,
                 Box::new(Rhs(vec![
-                    RhsEntry::Key("captions".into()),
-                    RhsEntry::Index(IndexOp::Literal(1)),
+                    RhsPart::Key(RhsEntry::Key("captions".into())),
+                    RhsPart::Index(IndexOp::Literal(1)),
                 ])),
-            ))),
+            )))),
         ]),
     }
     .run();
     RhsTestCase {
         expr: "states.@(2,states[&])",
         expected: Rhs(vec![
-            RhsEntry::Key("states".into()),
-            RhsEntry::Dot,
-            RhsEntry::At(Some((
+            RhsPart::Key(RhsEntry::Key("states".into())),
+            RhsPart::Key(RhsEntry::At(Some((
                 2,
                 Box::new(Rhs(vec![
-                    RhsEntry::Key("states".into()),
-                    RhsEntry::Index(IndexOp::Amp(0, 0)),
+                    RhsPart::Key(RhsEntry::Key("states".into())),
+                    RhsPart::Index(IndexOp::Amp(0, 0)),
                 ])),
-            ))),
+            )))),
         ]),
     }
     .run();
@@ -468,42 +466,42 @@ fn test_parse_rhs_misc() {
 fn test_parse_rhs_escape() {
     RhsTestCase {
         expr: "\\@A",
-        expected: Rhs(vec![RhsEntry::Key("@A".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("@A".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\$B",
-        expected: Rhs(vec![RhsEntry::Key("$B".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("$B".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\&C",
-        expected: Rhs(vec![RhsEntry::Key("&C".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("&C".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\[D",
-        expected: Rhs(vec![RhsEntry::Key("[D".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("[D".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\[\\]E",
-        expected: Rhs(vec![RhsEntry::Key("[]E".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("[]E".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\]F",
-        expected: Rhs(vec![RhsEntry::Key("]F".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("]F".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\*G",
-        expected: Rhs(vec![RhsEntry::Key("*G".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("*G".into()))]),
     }
     .run();
     RhsTestCase {
         expr: "\\#H",
-        expected: Rhs(vec![RhsEntry::Key("#H".into())]),
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::Key("#H".into()))]),
     }
     .run();
 }
@@ -522,8 +520,8 @@ fn test_parse_rhs_idx_at() {
     RhsTestCase {
         expr: "hello[@(2,world)]",
         expected: Rhs(vec![
-            RhsEntry::Key("hello".into()),
-            RhsEntry::Index(IndexOp::At(Some((2, "world".into())))),
+            RhsPart::Key(RhsEntry::Key("hello".into())),
+            RhsPart::Index(IndexOp::At(Some((2, "world".into())))),
         ]),
     }
     .run();

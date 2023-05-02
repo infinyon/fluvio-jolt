@@ -76,8 +76,9 @@ impl<'input> Parser<'input> {
                     let idx_op = self.parse_index_op(depth)?;
                     RhsPart::Index(idx_op)
                 }
-                TokenKind::Dot | TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => {
-                    if token.kind == TokenKind::Dot && parts.is_empty() {
+                TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => self.parse_rhs_part(depth)?,
+                TokenKind::Dot => {
+                    if parts.is_empty() {
                         return Err(ParseError {
                             pos: token.pos,
                             cause: ParseErrorCause::UnexpectedToken(
@@ -89,18 +90,14 @@ impl<'input> Parser<'input> {
 
                     self.assert_next(TokenKind::Dot)?;
 
-                    self.parse_rhs_part(depth)?
+                    continue;
                 }
                 _ => {
-                    return Err(ParseError {
-                        pos: token.pos,
-                        cause: ParseErrorCause::UnexpectedToken(
-                            self.input.next().unwrap().unwrap(),
-                        )
-                        .into(),
-                    });
+                    break;
                 }
             };
+
+            parts.push(part);
         }
 
         Ok(Rhs(parts))
@@ -113,7 +110,7 @@ impl<'input> Parser<'input> {
             let token = token?;
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                TokenKind::At => self.parse_at(0).map(RhsEntry::At),
+                TokenKind::At => self.parse_at(depth).map(RhsEntry::At),
                 TokenKind::Key(_) => self.parse_key().map(RhsEntry::Key),
                 _ => break,
             }?;
