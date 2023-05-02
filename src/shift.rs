@@ -145,21 +145,57 @@ fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)])
 
     let v = &path[path.len() - at.0 - 1];
 
-    eval_rhs(&at.1, &v.1)
+    eval_rhs(&at.1, &v.1, path)
 }
 
-fn eval_rhs(rhs: &Rhs, v: &Value) -> Result<Value> {
+fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
     let mut v = v;
 
     for part in rhs.0.iter() {
         match part {
-            RhsPart::Index(idx_op) => {}
+            RhsPart::Index(idx_op) => {
+                match v {
+                    Value::Array(a) => {
+                        let idx = match idx_op {
+                            IndexOp::Square(_) => {
+                                // TODO: implement this. It requires recording number of matches in each level
+                                return Err(Error::Todo);
+                            }
+                            IndexOp::Amp(idx0, idx1) => {
+                                let m = get_match((*idx0, *idx1), path)?;
+                                m.parse().map_err(Error::InvalidIndex)?
+                            }
+                            IndexOp::Literal(idx) => *idx,
+                            IndexOp::At(at) => match eval_at(at, path)? {
+                                Value::Number(n) => n
+                                    .clone()
+                                    .as_u64()
+                                    .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
+                                    .try_into()
+                                    .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
+                                Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
+                                v => return Err(Error::InvalidIndexVal(v)),
+                            },
+                            IndexOp::Empty => {
+                                return Err(Error::UnexpectedRhsEntry);
+                            }
+                        };
+
+                        v = a
+                            .get(idx)
+                            .ok_or(Error::ArrIndexOutOfRange { idx, len: a.len() })?;
+                    }
+                    _ => {
+                        return Err(Error::UnexpectedRhsEntry);
+                    }
+                }
+            }
             RhsPart::CompositeKey(entries) => {}
             RhsPart::Key(entry) => {}
         }
     }
 
-    todo!()
+    Ok(Value::clone(v))
 }
 
 fn insert_val_to_rhs(rhs: &Rhs, v: Value, out: &mut Value) -> Result<()> {
