@@ -49,8 +49,14 @@ fn iter_json(dir_path: &str) -> Box<dyn Iterator<Item = (PathBuf, TestCase)>> {
     Box::new(iter)
 }
 
-pub fn test_dir(dir_path: &str, operation: &str) {
+pub fn test_dir(dir_path: &str, operation: &str, skiplist: &[&str]) {
     for (path, case) in iter_json(dir_path) {
+        let path = path.to_str().unwrap();
+
+        if skiplist.iter().any(|s| path.contains(s)) {
+            continue;
+        }
+
         let val = serde_json::json!([{
             "operation": operation,
             "spec": case.spec,
@@ -59,7 +65,6 @@ pub fn test_dir(dir_path: &str, operation: &str) {
         let spec: TransformSpec = match serde_json::from_value(val) {
             Ok(json) => json,
             Err(e) => {
-                let path = path.to_str().unwrap();
                 panic!("failed to deserialize test case at {path}.\n{e}");
             }
         };
@@ -67,7 +72,6 @@ pub fn test_dir(dir_path: &str, operation: &str) {
         let output = match transform(case.input, &spec) {
             Ok(output) => output,
             Err(e) => {
-                let path = path.to_str().unwrap();
                 panic!("failed test;operation={operation};path={path};error={e}");
             }
         };
@@ -75,7 +79,6 @@ pub fn test_dir(dir_path: &str, operation: &str) {
         if output != case.expected {
             let expected = serde_json::to_string_pretty(&case.expected).unwrap();
             let output = serde_json::to_string_pretty(&output).unwrap();
-            let path = path.to_str().unwrap();
             panic!("failed test;operation={operation};path={path};\nexpected={expected}\noutput={output}");
         }
     }
