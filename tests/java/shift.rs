@@ -18,4 +18,6 @@ fn test_shift_transform() {
             "wildcardsWithOr", // skipped because has some weirdness with alphabetical ordering
         ],
     );
+
+    test_dir("tests/data/shift", "shift", &[]);
 }

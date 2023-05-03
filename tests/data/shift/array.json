@@ -1,0 +1,63 @@
+{
+  "input": {
+    "description": "top description",
+    "items": [
+      {
+        "description": "inner description 1",
+        "guid": {
+          "permalink": true,
+          "value": "https://example.com/link1-1"
+        },
+        "link": "https://example.com/link1",
+        "pub_date": "Tue, 18 Apr 2023 14:59:04 GMT",
+        "title": "Title 1"
+      },
+      {
+        "description": "inner description 2",
+        "guid": {
+          "permalink": true,
+          "value": "https://example.com/link2-1"
+        },
+        "link": "https://example.com/link2",
+        "pub_date": "Tue, 19 Apr 2023 14:20:04 GMT",
+        "title": "Title 2"
+      }
+    ],
+    "last_build_date": "Tue, 18 Apr 2023 15:00:01 GMT",
+    "link": "https://example.com/top-link",
+    "namespaces": {
+      "blogChannel": "http://example.com/blogChannelModule"
+    },
+    "title": "Blog-Recent Entries"
+  },
+  "spec": {
+    "items": {
+      "*": {
+        "@guid.value": "[&1].guid",
+        "@link": "[&1].link",
+        "@description": "[&1].description",
+        "@title": "[&1].title",
+        "@pub_date": "[&1].pub_date",
+        "@(2,last_build_date)": "[&1].last_build_date"
+      }
+    }
+  },
+  "expected": [
+    {
+      "description": "inner description 1",
+      "guid": "https://example.com/link1-1",
+      "link": "https://example.com/link1",
+      "pub_date": "Tue, 18 Apr 2023 14:59:04 GMT",
+      "title": "Title 1",
+      "last_build_date": "Tue, 18 Apr 2023 15:00:01 GMT"
+    },
+    {
+      "description": "inner description 2",
+      "guid": "https://example.com/link2-1",
+      "link": "https://example.com/link2",
+      "pub_date": "Tue, 19 Apr 2023 14:20:04 GMT",
+      "title": "Title 2",
+      "last_build_date": "Tue, 18 Apr 2023 15:00:01 GMT"
+    }
+  ]
+}
