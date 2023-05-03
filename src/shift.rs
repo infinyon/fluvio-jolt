@@ -427,6 +427,8 @@ fn match_stars<'ctx, 'input: 'ctx>(
         _ => (),
     }
 
+    let mut m = vec![k.clone()];
+
     let prefix = stars[0].as_str();
 
     let mut k = if prefix.is_empty() {
@@ -443,8 +445,6 @@ fn match_stars<'ctx, 'input: 'ctx>(
             }
         }
     };
-
-    let mut m = vec![k.clone()];
 
     for pattern in stars.iter().skip(1) {
         if !pattern.is_empty() {
