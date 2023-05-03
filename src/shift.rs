@@ -94,7 +94,12 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     v: &'input Value,
     out: &'ctx mut Value,
 ) -> Result<()> {
+    println!("match_obj_and_key");
+
     for (lhs, rhs) in obj.iter() {
+        println!("matching");
+        dbg!(&lhs);
+        dbg!(&k);
         let (res, m) = match_lhs(&lhs.lhs, k.clone(), path)?;
         if let Some(res) = res {
             path.push((m, v));
@@ -107,6 +112,8 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
                         return Err(Error::UnexpectedObjectInRhs);
                     }
 
+                    println!("applying");
+
                     apply(inner, path, out)?;
                 }
                 Val::Rhs(rhs) => {
@@ -114,6 +121,8 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
                         MatchResult::OutputInputValue => v.clone(),
                         MatchResult::OutputVal(v) => v,
                     };
+
+                    println!("inserting");
 
                     insert_val_to_rhs(rhs, v, path, out)?;
                 }
@@ -381,6 +390,10 @@ fn match_stars<'ctx, 'input: 'ctx>(
         } else {
             None
         };
+    }
+
+    if k == stars[0].as_str() {
+        return Some(vec![k]);
     }
 
     let mut k: Cow<'input, str> = match k {

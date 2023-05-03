@@ -209,7 +209,7 @@ use crate::{JsonPointer, shift::Shift};
 pub struct TransformSpec(Vec<SpecEntry>);
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(tag = "operation")]
+#[serde(tag = "operation", content = "spec")]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum SpecEntry {
     Shift(Shift),
