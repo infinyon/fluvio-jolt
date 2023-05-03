@@ -130,35 +130,35 @@ mod test {
     use serde_json::json;
     use super::*;
 
-    // #[test]
-    // fn test_transform() {
-    //     let spec: TransformSpec = serde_json::from_value(json!(
-    //         [
-    //             {
-    //               "operation": "shift",
-    //               "spec": {
-    //                 "a": "a_new",
-    //                 "c": "c_new"
-    //               }
-    //             }
-    //         ]
-    //     ))
-    //     .expect("parsed spec");
+    #[test]
+    fn test_transform() {
+        let spec: TransformSpec = serde_json::from_value(json!(
+            [
+                {
+                  "operation": "shift",
+                  "spec": {
+                    "a": "a_new",
+                    "c": "c_new"
+                  }
+                }
+            ]
+        ))
+        .expect("parsed spec");
 
-    //     let source = json!({
-    //         "a": "b",
-    //         "c": "d"
-    //     });
-    //     let result = transform(source, &spec);
+        let source = json!({
+            "a": "b",
+            "c": "d"
+        });
+        let result = transform(source, &spec).unwrap();
 
-    //     assert_eq!(
-    //         result,
-    //         json!({
-    //             "a_new": "b",
-    //             "c_new": "d"
-    //         })
-    //     );
-    // }
+        assert_eq!(
+            result,
+            json!({
+                "a_new": "b",
+                "c_new": "d"
+            })
+        );
+    }
 
     #[test]
     fn test_insert_object_to_empty() {
