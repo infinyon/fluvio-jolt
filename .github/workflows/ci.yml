@@ -18,8 +18,8 @@ concurrency:
 
 jobs:
 
-  unit_test:
-    name: Unit test
+  test:
+    name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -28,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: 'true'
     - name: Install ${{ matrix.rust }}
       uses: actions-rs/toolchain@v1
       with:
