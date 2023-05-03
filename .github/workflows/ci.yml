@@ -80,7 +80,7 @@ jobs:
     name: Done
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     needs: 
-      - unit_test
+      - test
       - check_fmt
       - check_clippy
     runs-on: ubuntu-latest
