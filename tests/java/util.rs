@@ -55,7 +55,14 @@ pub fn test_dir(dir_path: &str, operation: &str) {
             "operation": operation,
             "spec": case.spec,
         }]);
-        let spec: TransformSpec = serde_json::from_value(val).unwrap();
+
+        let spec: TransformSpec = match serde_json::from_value(val) {
+            Ok(json) => json,
+            Err(e) => {
+                let path = path.to_str().unwrap();
+                panic!("failed to deserialize test case at {path}.\n{e}");
+            }
+        };
 
         let output = transform(case.input, &spec).unwrap();
 

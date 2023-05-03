@@ -19,6 +19,7 @@ type Obj = IndexMap<LhsWithHash, Val, Xxh3Builder>;
 enum Val {
     Obj(Box<Obj>),
     Rhs(Rhs),
+    Arr(Vec<Rhs>),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -125,6 +126,18 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
                     println!("inserting");
 
                     insert_val_to_rhs(rhs, v, path, out)?;
+                }
+                Val::Arr(rhs_arr) => {
+                    let v = match res {
+                        MatchResult::OutputInputValue => v.clone(),
+                        MatchResult::OutputVal(v) => v,
+                    };
+
+                    println!("inserting arr");
+
+                    for rhs in rhs_arr.iter() {
+                        insert_val_to_rhs(rhs, v.clone(), path, out)?;
+                    }
                 }
             }
 
@@ -258,43 +271,42 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
     for part in rhs.0.iter() {
         match part {
             RhsPart::Index(idx_op) => {
-                match out {
-                    Value::Array(a) => {
-                        let idx = match idx_op {
-                            IndexOp::Square(_) => {
-                                // TODO: implement this. It requires recording number of matches in each level
-                                return Err(Error::Todo);
-                            }
-                            IndexOp::Amp(idx0, idx1) => {
-                                let m = get_match((*idx0, *idx1), path)?;
-                                m.parse().map_err(Error::InvalidIndex)?
-                            }
-                            IndexOp::Literal(idx) => *idx,
-                            IndexOp::At(at) => match eval_at(at, path)? {
-                                Value::Number(n) => n
-                                    .clone()
-                                    .as_u64()
-                                    .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
-                                    .try_into()
-                                    .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
-                                Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
-                                v => return Err(Error::InvalidIndexVal(v)),
-                            },
-                            IndexOp::Empty => {
-                                return Err(Error::UnexpectedRhsEntry);
-                            }
-                        };
-
-                        let len = a.len();
-
-                        out = a
-                            .get_mut(idx)
-                            .ok_or(Error::ArrIndexOutOfRange { idx, len })?;
+                let idx = match idx_op {
+                    IndexOp::Square(_) => {
+                        // TODO: implement this. It requires recording number of matches in each level
+                        return Err(Error::Todo);
                     }
-                    _ => {
+                    IndexOp::Amp(idx0, idx1) => {
+                        let m = get_match((*idx0, *idx1), path)?;
+                        m.parse().map_err(Error::InvalidIndex)?
+                    }
+                    IndexOp::Literal(idx) => *idx,
+                    IndexOp::At(at) => match eval_at(at, path)? {
+                        Value::Number(n) => n
+                            .clone()
+                            .as_u64()
+                            .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
+                            .try_into()
+                            .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
+                        Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
+                        v => return Err(Error::InvalidIndexVal(v)),
+                    },
+                    IndexOp::Empty => {
                         return Err(Error::UnexpectedRhsEntry);
                     }
+                };
+                let arr = if out.is_array() {
+                    out.as_array_mut().unwrap()
+                } else {
+                    *out = Value::Array(vec![std::mem::take(out)]);
+                    out.as_array_mut().unwrap()
+                };
+
+                while arr.len() <= idx {
+                    arr.push(Value::Null);
                 }
+
+                out = arr.get_mut(idx).unwrap();
             }
             RhsPart::CompositeKey(entries) => {
                 let mut key = String::new();
@@ -304,22 +316,26 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                     key += cow.as_ref();
                 }
 
-                let obj = out.as_object_mut().ok_or(Error::UnexpectedRhsEntry)?;
-
-                out = match obj.get_mut(&key) {
-                    Some(out) => out,
-                    None => return Err(Error::KeyNotFound(key.to_owned())),
+                let obj = if out.is_object() {
+                    out.as_object_mut().unwrap()
+                } else {
+                    *out = Value::Object(Default::default());
+                    out.as_object_mut().unwrap()
                 };
+
+                out = obj.entry(&key).or_insert(Default::default());
             }
             RhsPart::Key(entry) => {
                 let cow = rhs_entry_to_cow(entry, path)?;
 
-                let obj = out.as_object_mut().ok_or(Error::UnexpectedRhsEntry)?;
-
-                out = match obj.get_mut(cow.as_ref()) {
-                    Some(out) => out,
-                    None => return Err(Error::KeyNotFound(cow.into_owned())),
+                let obj = if out.is_object() {
+                    out.as_object_mut().unwrap()
+                } else {
+                    *out = Value::Object(Default::default());
+                    out.as_object_mut().unwrap()
                 };
+
+                out = obj.entry(cow.as_ref()).or_insert(Default::default());
             }
         }
     }
