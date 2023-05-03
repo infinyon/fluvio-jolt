@@ -271,6 +271,16 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
     for part in rhs.0.iter() {
         match part {
             RhsPart::Index(idx_op) => {
+                let arr = if out.is_array() {
+                    out.as_array_mut().unwrap()
+                } else if out.is_null() {
+                    *out = Value::Array(Vec::new());
+                    out.as_array_mut().unwrap()
+                } else {
+                    *out = Value::Array(vec![std::mem::take(out)]);
+                    out.as_array_mut().unwrap()
+                };
+
                 let idx = match idx_op {
                     IndexOp::Square(_) => {
                         // TODO: implement this. It requires recording number of matches in each level
@@ -292,14 +302,10 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                         v => return Err(Error::InvalidIndexVal(v)),
                     },
                     IndexOp::Empty => {
-                        return Err(Error::UnexpectedRhsEntry);
+                        arr.push(Value::Null);
+                        out = arr.last_mut().unwrap();
+                        continue;
                     }
-                };
-                let arr = if out.is_array() {
-                    out.as_array_mut().unwrap()
-                } else {
-                    *out = Value::Array(vec![std::mem::take(out)]);
-                    out.as_array_mut().unwrap()
                 };
 
                 while arr.len() <= idx {
@@ -455,6 +461,8 @@ fn match_stars<'ctx, 'input: 'ctx>(
                     }
                 },
             }
+        } else {
+            m.push(k.clone());
         }
     }
 
@@ -476,7 +484,7 @@ fn get_match<'ctx, 'input: 'ctx>(
 
     let m = matches.get(idx.1).ok_or(Error::MatchIndexOutOfRange {
         idx: idx.1,
-        len: path.len(),
+        len: matches.len(),
     })?;
 
     Ok(m.clone())

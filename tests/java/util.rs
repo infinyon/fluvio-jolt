@@ -64,7 +64,13 @@ pub fn test_dir(dir_path: &str, operation: &str) {
             }
         };
 
-        let output = transform(case.input, &spec).unwrap();
+        let output = match transform(case.input, &spec) {
+            Ok(output) => output,
+            Err(e) => {
+                let path = path.to_str().unwrap();
+                panic!("failed test;operation={operation};path={path};error={e}");
+            }
+        };
 
         if output != case.expected {
             let expected = serde_json::to_string_pretty(&case.expected).unwrap();
