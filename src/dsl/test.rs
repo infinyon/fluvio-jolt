@@ -526,3 +526,15 @@ fn test_parse_rhs_idx_at() {
     }
     .run();
 }
+
+#[test]
+fn test_parse_rhs_at_edge_case() {
+    RhsTestCase {
+        expr: "@2",
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::At(Some((
+            2,
+            Rhs(Vec::new()).into(),
+        ))))]),
+    }
+    .run();
+}

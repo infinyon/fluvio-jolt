@@ -346,7 +346,18 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
         }
     }
 
-    *out = v;
+    match out {
+        Value::Null => {
+            *out = v;
+        }
+        Value::Array(arr) => {
+            arr.push(v);
+        }
+        val => {
+            let v = Value::Array(vec![std::mem::take(val), v]);
+            *val = v;
+        }
+    }
 
     Ok(())
 }

@@ -253,7 +253,22 @@ impl<'input> Parser<'input> {
 
         let token = match self.input.peek() {
             Some(token) => token?,
-            None => return Ok(Some((0, Box::new(rhs)))),
+            None => {
+                if rhs.0.len() == 1 {
+                    if let RhsPart::Key(RhsEntry::Key(k)) = rhs.0.get(0).unwrap() {
+                        if k.chars().all(|c| c.is_ascii_digit()) {
+                            let idx = k.parse().map_err(|e| ParseError {
+                                pos: self.input.pos(),
+                                cause: Box::new(ParseErrorCause::InvalidIndex(e)),
+                            })?;
+
+                            return Ok(Some((idx, Box::new(Rhs(Vec::new())))));
+                        }
+                    }
+                }
+
+                return Ok(Some((0, Box::new(rhs))));
+            }
         };
 
         match &token.kind {
