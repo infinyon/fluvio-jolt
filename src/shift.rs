@@ -115,7 +115,7 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
                         MatchResult::OutputVal(v) => v,
                     };
 
-                    insert_val_to_rhs(rhs, v, out)?;
+                    insert_val_to_rhs(rhs, v, path, out)?;
                 }
             }
 
@@ -238,8 +238,86 @@ fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value>
     }
 }
 
-fn insert_val_to_rhs(rhs: &Rhs, v: Value, out: &mut Value) -> Result<()> {
-    todo!()
+fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
+    rhs: &Rhs,
+    v: Value,
+    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
+    out: &mut Value,
+) -> Result<()> {
+    let mut out = out;
+
+    for part in rhs.0.iter() {
+        match part {
+            RhsPart::Index(idx_op) => {
+                match out {
+                    Value::Array(a) => {
+                        let idx = match idx_op {
+                            IndexOp::Square(_) => {
+                                // TODO: implement this. It requires recording number of matches in each level
+                                return Err(Error::Todo);
+                            }
+                            IndexOp::Amp(idx0, idx1) => {
+                                let m = get_match((*idx0, *idx1), path)?;
+                                m.parse().map_err(Error::InvalidIndex)?
+                            }
+                            IndexOp::Literal(idx) => *idx,
+                            IndexOp::At(at) => match eval_at(at, path)? {
+                                Value::Number(n) => n
+                                    .clone()
+                                    .as_u64()
+                                    .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
+                                    .try_into()
+                                    .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
+                                Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
+                                v => return Err(Error::InvalidIndexVal(v)),
+                            },
+                            IndexOp::Empty => {
+                                return Err(Error::UnexpectedRhsEntry);
+                            }
+                        };
+
+                        let len = a.len();
+
+                        out = a
+                            .get_mut(idx)
+                            .ok_or(Error::ArrIndexOutOfRange { idx, len })?;
+                    }
+                    _ => {
+                        return Err(Error::UnexpectedRhsEntry);
+                    }
+                }
+            }
+            RhsPart::CompositeKey(entries) => {
+                let mut key = String::new();
+
+                for entry in entries {
+                    let cow = rhs_entry_to_cow(entry, path)?;
+                    key += cow.as_ref();
+                }
+
+                let obj = out.as_object_mut().ok_or(Error::UnexpectedRhsEntry)?;
+
+                out = match obj.get_mut(&key) {
+                    Some(out) => out,
+                    None => return Err(Error::KeyNotFound(key.to_owned())),
+                };
+            }
+            RhsPart::Key(entry) => {
+                let cow = rhs_entry_to_cow(entry, path)?;
+
+                let obj = out.as_object_mut().ok_or(Error::UnexpectedRhsEntry)?;
+
+                out = match obj.get_mut(cow.as_ref()) {
+                    Some(out) => out,
+                    None => return Err(Error::KeyNotFound(cow.into_owned())),
+                };
+            }
+        }
+    }
+
+    *out = v;
+
+    Ok(())
 }
 
 #[derive(PartialEq)]
