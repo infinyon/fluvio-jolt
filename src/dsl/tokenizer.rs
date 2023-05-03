@@ -83,6 +83,53 @@ impl<'input> Tokenizer<'input> {
 
         Some(Ok(self.cache.as_ref().unwrap()))
     }
+
+    pub fn can_get_idx(&mut self) -> Option<Result<bool, ParseError>> {
+        self.peek().map(|res| {
+            res.map(|token| match &token.kind {
+                TokenKind::Key(k) => k
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false),
+                _ => false,
+            })
+        })
+    }
+
+    pub fn get_idx(&mut self) -> usize {
+        let token = self.next().unwrap().unwrap();
+
+        match token.kind {
+            TokenKind::Key(k) => {
+                let mut idx = 0;
+
+                for (i, c) in k.char_indices() {
+                    if !c.is_ascii_digit() {
+                        break;
+                    } else {
+                        idx = i;
+                    }
+                }
+
+                let mut k = k;
+
+                let rest = k.split_off(idx + 1);
+
+                if !rest.is_empty() {
+                    self.cache = Some(Token {
+                        pos: token.pos,
+                        kind: TokenKind::Key(rest),
+                    });
+                }
+
+                let idx = k[..idx + 1].parse().unwrap();
+
+                idx
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl<'input> Iterator for Tokenizer<'input> {

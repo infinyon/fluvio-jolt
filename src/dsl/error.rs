@@ -4,13 +4,13 @@ use std::num::ParseIntError;
 use thiserror::Error as ThisError;
 use super::token::Token;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ParseError {
     pub(crate) pos: usize,
     pub(crate) cause: Box<ParseErrorCause>,
 }
 
-#[derive(Debug, ThisError)]
+#[derive(Debug, ThisError, PartialEq)]
 pub enum ParseErrorCause {
     #[error("Unexpected end of input")]
     UnexpectedEndOfInput,

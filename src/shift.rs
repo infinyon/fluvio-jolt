@@ -1,10 +1,7 @@
 use std::borrow::Cow;
-
 use indexmap::IndexMap;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp, RhsPart};
-use crate::spec::Spec;
-use crate::{delete, insert, JsonPointer};
 use xxhash_rust::xxh3::Xxh3Builder;
 use serde::Deserialize;
 use crate::transform::Transform;
@@ -44,6 +41,14 @@ fn apply<'ctx, 'input: 'ctx>(
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     out: &'ctx mut Value,
 ) -> Result<()> {
+    match_obj_and_key_impl(
+        obj,
+        path,
+        path.last().unwrap().0[0].clone(),
+        &Value::Null,
+        out,
+        false,
+    )?;
     let input = path.last().unwrap();
 
     match input.1 {
@@ -95,10 +100,7 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     v: &'input Value,
     out: &'ctx mut Value,
 ) -> Result<()> {
-    match_obj_and_key_impl(obj, path, k.clone(), v, out, false)?;
-    match_obj_and_key_impl(obj, path, k, v, out, true)?;
-
-    Ok(())
+    match_obj_and_key_impl(obj, path, k.clone(), v, out, true)
 }
 
 fn lhs_is_fallible(lhs: &Lhs) -> bool {
@@ -341,6 +343,9 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                     let cow = rhs_entry_to_cow(entry, path)?;
                     key += cow.as_ref();
                 }
+
+                dbg!(entries);
+                dbg!(&key);
 
                 let obj = if out.is_object() {
                     out.as_object_mut().unwrap()

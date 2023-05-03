@@ -343,16 +343,17 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_amp_or_ds(&mut self) -> Result<(usize, usize)> {
+        if self.input.can_get_idx() == Some(Ok(true)) {
+            let idx = self.input.get_idx();
+            return Ok((idx, 0));
+        }
+
         let token = match self.input.peek() {
             Some(token) => token,
             None => return Ok((0, 0)),
         }?;
 
         match &token.kind {
-            TokenKind::Key(key) if key.chars().all(|c| c.is_ascii_digit()) => {
-                let idx = self.parse_index()?;
-                Ok((idx, 0))
-            }
             TokenKind::OpenPrnth => {
                 self.assert_next(TokenKind::OpenPrnth)?;
                 let idx0 = self.parse_index()?;
