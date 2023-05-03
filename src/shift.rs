@@ -95,9 +95,31 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     v: &'input Value,
     out: &'ctx mut Value,
 ) -> Result<()> {
+    match_obj_and_key_impl(obj, path, k.clone(), v, out, false)?;
+    match_obj_and_key_impl(obj, path, k, v, out, true)?;
+
+    Ok(())
+}
+
+fn lhs_is_fallible(lhs: &Lhs) -> bool {
+    !matches!(lhs, Lhs::DollarSign(_, _) | Lhs::Square(_) | Lhs::At(_))
+}
+
+fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
+    obj: &'input Obj,
+    path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
+    k: Cow<'input, str>,
+    v: &'input Value,
+    out: &'ctx mut Value,
+    fallible: bool,
+) -> Result<()> {
     println!("match_obj_and_key");
 
     for (lhs, rhs) in obj.iter() {
+        if fallible != lhs_is_fallible(&lhs.lhs) {
+            continue;
+        }
+
         println!("matching");
         dbg!(&lhs);
         dbg!(&k);
@@ -105,11 +127,9 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
         if let Some(res) = res {
             path.push((m, v));
 
-            let lhs_is_match_all = matches!(res, MatchResult::OutputVal(_));
-
             match rhs {
                 Val::Obj(inner) => {
-                    if lhs_is_match_all {
+                    if !fallible {
                         return Err(Error::UnexpectedObjectInRhs);
                     }
 
@@ -143,7 +163,7 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
 
             path.pop().unwrap();
 
-            if !lhs_is_match_all {
+            if fallible {
                 break;
             }
         }
