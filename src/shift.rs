@@ -17,6 +17,7 @@ enum Val {
     Obj(Box<Obj>),
     Rhs(Rhs),
     Arr(Vec<Rhs>),
+    Null,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -201,6 +202,7 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
                         insert_val_to_rhs(rhs, v.clone(), path, out)?;
                     }
                 }
+                Val::Null => (),
             }
 
             path.pop().unwrap();
