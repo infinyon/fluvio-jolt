@@ -205,10 +205,10 @@ use crate::{JsonPointer, shift::Shift};
 ///     }
 /// }
 /// </pre>
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Default, Clone, PartialEq)]
 pub struct TransformSpec(Vec<SpecEntry>);
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(tag = "operation", content = "spec")]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum SpecEntry {
@@ -217,7 +217,7 @@ pub(crate) enum SpecEntry {
     Remove(Spec),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
 pub(crate) struct Spec(Value);
 
 #[derive(Debug)]
@@ -275,78 +275,80 @@ impl<'a> Iterator for SpecIter<'a> {
     }
 }
 
-// #[cfg(test)]
-// mod test {
+#[cfg(test)]
+mod test {
 
-//     use serde_json::json;
-//     use super::*;
+    use serde_json::json;
+    use super::*;
 
-//     #[test]
-//     fn test_de_from_str() {
-//         let spec = r#"
-//         [
-//             {
-//                 "operation": "shift",
-//                 "spec": {
-//                     "id": "__data.id",
-//                     "name": "__data.name",
-//                     "account": "__data.account"
-//                 }
-//             }
-//         ]"#;
-//         let result: TransformSpec = serde_json::from_str(spec).expect("parsed transform spec");
+    #[test]
+    fn test_de_from_str() {
+        let spec = r#"
+        [
+            {
+                "operation": "shift",
+                "spec": {
+                    "id": "__data.id",
+                    "name": "__data.name",
+                    "account": "__data.account"
+                }
+            }
+        ]"#;
+        let result: TransformSpec = serde_json::from_str(spec).expect("parsed transform spec");
 
-//         assert_eq!(
-//             result,
-//             TransformSpec(vec![SpecEntry::ShiftSpec(json!({
-//                     "id": "__data.id",
-//                     "name": "__data.name",
-//                     "account": "__data.account"
-//                 }))
-//             ])
-//         );
-//     }
+        assert_eq!(
+            result,
+            TransformSpec(vec![SpecEntry::Shift(
+                serde_json::from_value(json!({
+                    "id": "__data.id",
+                    "name": "__data.name",
+                    "account": "__data.account"
+                }))
+                .unwrap()
+            )])
+        );
+    }
 
-//     #[test]
-//     fn test_spec_iter_preserves_order() {
-//         let spec = r#"
-//         [
-//             {
-//                 "operation": "shift",
-//                 "spec": {
-//                     "id": "__data.id",
-//                     "name": "__data.name",
-//                     "account": "__data.account",
-//                     "address" : {
-//                         "country": "ext.country",
-//                         "city": "ext.city",
-//                         "phones": ["12345","00000"]
-//                     },
-//                     "*": "&0"
-//                 }
-//             }
-//         ]"#;
-//         let result: TransformSpec = serde_json::from_str(spec).expect("parsed transform spec");
+    // #[test]
+    // fn test_spec_iter_preserves_order() {
+    //     let spec = r#"
+    //     [
+    //         {
+    //             "operation": "shift",
+    //             "spec": {
+    //                 "id": "__data.id",
+    //                 "name": "__data.name",
+    //                 "account": "__data.account",
+    //                 "address" : {
+    //                     "country": "ext.country",
+    //                     "city": "ext.city",
+    //                     "phones": ["12345","00000"]
+    //                 },
+    //                 "*": "&0"
+    //             }
+    //         }
+    //     ]"#;
+    //     let result: TransformSpec = serde_json::from_str(spec).expect("parsed transform spec");
 
-//         let spec_entry = result.entries().next().expect("one spec entry");
+    //     let spec_entry = result.entries().next().expect("one spec entry");
 
-//         let items_vec = spec_entry
-//             .spec
-//             .iter()
-//             .map(|(path, item)| format!("{}:{}", path.join_rfc6901(), item))
-//             .collect::<Vec<String>>();
-//         assert_eq!(
-//             items_vec,
-//             vec![
-//                 "/id:\"__data.id\"",
-//                 "/name:\"__data.name\"",
-//                 "/account:\"__data.account\"",
-//                 "/address/country:\"ext.country\"",
-//                 "/address/city:\"ext.city\"",
-//                 "/address/phones/0:\"12345\"",
-//                 "/address/phones/1:\"00000\"",
-//                 "/*:\"&0\"",
-//             ]
-//         );
-//     }
-// }
+    //     let items_vec = spec_entry
+    //         .spec
+    //         .iter()
+    //         .map(|(path, item)| format!("{}:{}", path.join_rfc6901(), item))
+    //         .collect::<Vec<String>>();
+    //     assert_eq!(
+    //         items_vec,
+    //         vec![
+    //             "/id:\"__data.id\"",
+    //             "/name:\"__data.name\"",
+    //             "/account:\"__data.account\"",
+    //             "/address/country:\"ext.country\"",
+    //             "/address/city:\"ext.city\"",
+    //             "/address/phones/0:\"12345\"",
+    //             "/address/phones/1:\"00000\"",
+    //             "/*:\"&0\"",
+    //         ]
+    //     );
+    // }
+}
