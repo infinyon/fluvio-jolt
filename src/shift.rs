@@ -46,7 +46,7 @@ fn apply<'ctx, 'input: 'ctx>(
         obj,
         path,
         path.last().unwrap().0[0].clone(),
-        &path.last().unwrap().1,
+        path.last().unwrap().1,
         out,
         LhsSelection::Infallible,
     )?;
@@ -134,8 +134,6 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
     out: &'ctx mut Value,
     selection: LhsSelection,
 ) -> Result<bool> {
-    println!("match_obj_and_key");
-
     let mut matched = false;
 
     for (lhs, rhs) in obj.iter() {
@@ -161,9 +159,6 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
                 }
             }
         }
-        println!("matching");
-        dbg!(&lhs);
-        dbg!(&k);
         let (res, m) = match_lhs(&lhs.lhs, k.clone(), path)?;
         if let Some(res) = res {
             matched = true;
@@ -176,8 +171,6 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
                         return Err(Error::UnexpectedObjectInRhs);
                     }
 
-                    println!("applying");
-
                     apply(inner, path, out)?;
                 }
                 Val::Rhs(rhs) => {
@@ -186,8 +179,6 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
                         MatchResult::OutputVal(v) => v,
                     };
 
-                    println!("inserting");
-
                     insert_val_to_rhs(rhs, v, path, out)?;
                 }
                 Val::Arr(rhs_arr) => {
@@ -195,8 +186,6 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
                         MatchResult::OutputInputValue => v.clone(),
                         MatchResult::OutputVal(v) => v,
                     };
-
-                    println!("inserting arr");
 
                     for rhs in rhs_arr.iter() {
                         insert_val_to_rhs(rhs, v.clone(), path, out)?;
@@ -324,8 +313,6 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
 }
 
 fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value> {
-    dbg!(key);
-    dbg!(v);
     let obj = v.as_object().ok_or(Error::UnexpectedRhsEntry)?;
 
     match obj.get(key) {
@@ -343,7 +330,6 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
     let mut out = out;
 
     for part in rhs.0.iter() {
-        dbg!(part);
         match part {
             RhsPart::Index(idx_op) => {
                 let arr = if out.is_array() {
@@ -396,9 +382,6 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                     let cow = rhs_entry_to_cow(entry, path)?;
                     key += cow.as_ref();
                 }
-
-                dbg!(entries);
-                dbg!(&key);
 
                 let obj = if out.is_object() {
                     out.as_object_mut().unwrap()
@@ -485,12 +468,9 @@ fn match_lhs<'ctx, 'input: 'ctx>(
         )),
         Lhs::Pipes(pipes) => {
             for stars in pipes.iter() {
-                println!("matching stars");
                 if let Some(m) = match_stars(&stars.0, k.clone()) {
-                    println!("yes");
                     return Ok((Some(MatchResult::OutputInputValue), m));
                 }
-                println!("no");
             }
             Ok((None, Vec::new()))
         }
@@ -595,7 +575,7 @@ fn get_matches<'ctx, 'input: 'ctx>(
 ) -> Result<&'ctx [Cow<'input, str>]> {
     if idx >= path.len() {
         return Err(Error::PathIndexOutOfRange {
-            idx: idx,
+            idx,
             len: path.len(),
         });
     }
