@@ -8,6 +8,7 @@ pub enum Lhs {
     At(Option<(usize, Box<Rhs>)>),
     Square(String),
     Pipes(Vec<Stars>),
+    Literal(String),
 }
 
 impl Lhs {

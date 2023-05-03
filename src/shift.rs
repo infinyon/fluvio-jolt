@@ -47,7 +47,7 @@ fn apply<'ctx, 'input: 'ctx>(
         path.last().unwrap().0[0].clone(),
         &Value::Null,
         out,
-        false,
+        LhsSelection::Infallible,
     )?;
     let input = path.last().unwrap();
 
@@ -100,11 +100,29 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     v: &'input Value,
     out: &'ctx mut Value,
 ) -> Result<()> {
-    match_obj_and_key_impl(obj, path, k.clone(), v, out, true)
+    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Literal)? {
+        return Ok(());
+    }
+    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Amp)? {
+        return Ok(());
+    }
+    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Pipes)? {
+        return Ok(());
+    }
+
+    Ok(())
 }
 
 fn lhs_is_fallible(lhs: &Lhs) -> bool {
     !matches!(lhs, Lhs::DollarSign(_, _) | Lhs::Square(_) | Lhs::At(_))
+}
+
+#[derive(PartialEq)]
+enum LhsSelection {
+    Infallible,
+    Literal,
+    Amp,
+    Pipes,
 }
 
 fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
@@ -113,25 +131,47 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
     k: Cow<'input, str>,
     v: &'input Value,
     out: &'ctx mut Value,
-    fallible: bool,
-) -> Result<()> {
+    selection: LhsSelection,
+) -> Result<bool> {
     println!("match_obj_and_key");
 
-    for (lhs, rhs) in obj.iter() {
-        if fallible != lhs_is_fallible(&lhs.lhs) {
-            continue;
-        }
+    let mut matched = false;
 
+    for (lhs, rhs) in obj.iter() {
+        match selection {
+            LhsSelection::Infallible => {
+                if lhs_is_fallible(&lhs.lhs) {
+                    continue;
+                }
+            }
+            LhsSelection::Literal => {
+                if !matches!(lhs.lhs, Lhs::Literal(_)) {
+                    continue;
+                }
+            }
+            LhsSelection::Amp => {
+                if !matches!(lhs.lhs, Lhs::Amp(_, _)) {
+                    continue;
+                }
+            }
+            LhsSelection::Pipes => {
+                if !matches!(lhs.lhs, Lhs::Pipes(_)) {
+                    continue;
+                }
+            }
+        }
         println!("matching");
         dbg!(&lhs);
         dbg!(&k);
         let (res, m) = match_lhs(&lhs.lhs, k.clone(), path)?;
         if let Some(res) = res {
+            matched = true;
+
             path.push((m, v));
 
             match rhs {
                 Val::Obj(inner) => {
-                    if !fallible {
+                    if selection == LhsSelection::Infallible {
                         return Err(Error::UnexpectedObjectInRhs);
                     }
 
@@ -165,13 +205,13 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
 
             path.pop().unwrap();
 
-            if fallible {
+            if selection != LhsSelection::Infallible {
                 break;
             }
         }
     }
 
-    Ok(())
+    Ok(matched)
 }
 
 fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
@@ -291,6 +331,7 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
     let mut out = out;
 
     for part in rhs.0.iter() {
+        dbg!(part);
         match part {
             RhsPart::Index(idx_op) => {
                 let arr = if out.is_array() {
@@ -354,7 +395,7 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                     out.as_object_mut().unwrap()
                 };
 
-                out = obj.entry(&key).or_insert(Default::default());
+                out = obj.entry(&key).or_insert(Value::Null);
             }
             RhsPart::Key(entry) => {
                 let cow = rhs_entry_to_cow(entry, path)?;
@@ -366,7 +407,7 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                     out.as_object_mut().unwrap()
                 };
 
-                out = obj.entry(cow.as_ref()).or_insert(Default::default());
+                out = obj.entry(cow.as_ref()).or_insert(Value::Null);
             }
         }
     }
@@ -437,6 +478,13 @@ fn match_lhs<'ctx, 'input: 'ctx>(
                 println!("no");
             }
             Ok((None, Vec::new()))
+        }
+        Lhs::Literal(lit) => {
+            if lit == k.as_ref() {
+                Ok((Some(MatchResult::OutputInputValue), vec![k]))
+            } else {
+                Ok((None, Vec::new()))
+            }
         }
     }
 }

@@ -31,7 +31,7 @@ impl<'input> Parser<'input> {
             TokenKind::At => self.parse_at(0).map(Lhs::At),
             TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
-            _ => self.parse_pipes().map(Lhs::Pipes),
+            _ => self.parse_pipes(),
         }?;
 
         if let Some(token) = self.input.next() {
@@ -382,8 +382,20 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_pipes(&mut self) -> Result<Vec<Stars>> {
+    fn parse_pipes(&mut self) -> Result<Lhs> {
         let mut pipes = Vec::new();
+
+        let pipes_to_lhs = |mut pipes: Vec<Stars>| {
+            if pipes.len() == 1 {
+                if pipes[0].0.len() == 1 {
+                    Lhs::Literal(pipes[0].0.pop().unwrap())
+                } else {
+                    Lhs::Pipes(pipes)
+                }
+            } else {
+                Lhs::Pipes(pipes)
+            }
+        };
 
         loop {
             let stars = self.parse_stars()?;
@@ -392,7 +404,7 @@ impl<'input> Parser<'input> {
 
             let token = match self.input.peek() {
                 Some(token) => token,
-                None => return Ok(pipes),
+                None => return Ok(pipes_to_lhs(pipes)),
             }?;
 
             match token.kind {
@@ -400,7 +412,7 @@ impl<'input> Parser<'input> {
                     self.assert_next(TokenKind::Pipe)?;
                     continue;
                 }
-                _ => return Ok(pipes),
+                _ => return Ok(pipes_to_lhs(pipes)),
             }
         }
     }

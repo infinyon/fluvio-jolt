@@ -34,7 +34,7 @@ fn test_parse_lhs_square() {
 fn test_parse_lhs_key() {
     LhsTestCase {
         expr: "my123 _12\n3key",
-        expected: Lhs::Pipes(vec![Stars(vec!["my123 _12\n3key".into()])]),
+        expected: Lhs::Literal("my123 _12\n3key".into()),
     }
     .run();
 }
@@ -457,6 +457,15 @@ fn test_parse_rhs_misc() {
                     RhsPart::Index(IndexOp::Amp(0, 0)),
                 ])),
             )))),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "ratings.&1.label",
+        expected: Rhs(vec![
+            RhsPart::Key(RhsEntry::Key("ratings".into())),
+            RhsPart::Key(RhsEntry::Amp(1, 0)),
+            RhsPart::Key(RhsEntry::Key("label".into())),
         ]),
     }
     .run();

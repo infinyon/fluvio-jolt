@@ -123,9 +123,7 @@ impl<'input> Tokenizer<'input> {
                     });
                 }
 
-                let idx = k[..idx + 1].parse().unwrap();
-
-                idx
+                k[..idx + 1].parse().unwrap()
             }
             _ => unreachable!(),
         }
