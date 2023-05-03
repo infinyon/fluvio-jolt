@@ -387,9 +387,12 @@ fn match_lhs<'ctx, 'input: 'ctx>(
         )),
         Lhs::Pipes(pipes) => {
             for stars in pipes.iter() {
+                println!("matching stars");
                 if let Some(m) = match_stars(&stars.0, k.clone()) {
+                    println!("yes");
                     return Ok((Some(MatchResult::OutputInputValue), m));
                 }
+                println!("no");
             }
             Ok((None, Vec::new()))
         }
@@ -400,26 +403,44 @@ fn match_stars<'ctx, 'input: 'ctx>(
     stars: &'input [String],
     k: Cow<'input, str>,
 ) -> Option<Vec<Cow<'input, str>>> {
-    if stars.is_empty() {
-        return if k.is_empty() {
-            Some(vec!["".into()])
-        } else {
-            None
-        };
+    match stars.len() {
+        0 => {
+            return if k.is_empty() {
+                Some(vec!["".into()])
+            } else {
+                None
+            };
+        }
+        1 => {
+            return if k == stars[0].as_str() {
+                Some(vec![k])
+            } else {
+                None
+            };
+        }
+        _ => (),
     }
 
-    if k == stars[0].as_str() {
-        return Some(vec![k]);
-    }
+    let prefix = stars[0].as_str();
 
-    let mut k: Cow<'input, str> = match k {
-        Cow::Borrowed(s) => Cow::Borrowed(s.strip_prefix(stars[0].as_str())?),
-        Cow::Owned(s) => Cow::Owned(s.strip_prefix(stars[0].as_str())?.to_owned()),
+    let mut k = if prefix.is_empty() {
+        k
+    } else {
+        match k {
+            Cow::Borrowed(s) => {
+                let s = s.strip_prefix(prefix)?;
+                Cow::Borrowed(s)
+            }
+            Cow::Owned(s) => {
+                let s = s.strip_prefix(prefix)?;
+                Cow::Owned(s.to_owned())
+            }
+        }
     };
 
     let mut m = vec![k.clone()];
 
-    for pattern in stars.iter() {
+    for pattern in stars.iter().skip(1) {
         if !pattern.is_empty() {
             match k.find(pattern.as_str()) {
                 None => return None,
@@ -459,232 +480,4 @@ fn get_match<'ctx, 'input: 'ctx>(
     })?;
 
     Ok(m.clone())
-}
-
-pub(crate) fn shift(mut input: Value, spec: &Spec) -> Value {
-    let mut result = Value::Object(Map::new());
-    for (spec_pointer, spec_leaf) in spec.iter() {
-        let target_position = match spec_leaf {
-            Value::String(val) => JsonPointer::from_dot_notation(val),
-            _ => continue,
-        };
-        while let Some((input_pointer, input_leaf)) = find_mut(&mut input, &spec_pointer) {
-            let mut bindings = input_pointer.entries().to_vec();
-            bindings.reverse();
-            let mut new_position = target_position.clone();
-            new_position.substitute_vars(&bindings);
-            insert(&mut result, new_position, input_leaf.take());
-            let _ = delete(&mut input, &input_pointer);
-        }
-    }
-    result
-}
-
-fn find_mut<'a>(
-    dest: &'a mut Value,
-    position: &JsonPointer,
-) -> Option<(JsonPointer, &'a mut Value)> {
-    position.iter().skip(1).try_fold(
-        (JsonPointer::default(), dest),
-        |(mut path, target), token| match target {
-            Value::Object(map) => {
-                map.iter_mut()
-                    .find(|(k, _)| match_node(k, token))
-                    .map(|(k, v)| {
-                        path.push(k);
-                        (path, v)
-                    })
-            }
-            _ => None,
-        },
-    )
-}
-
-fn match_node(node: &str, pattern: &str) -> bool {
-    if pattern == "*" {
-        return true;
-    }
-    if node == pattern {
-        return true;
-    }
-    if pattern.split('|').any(|part| part == node) {
-        return true;
-    }
-    false
-}
-
-#[cfg(test)]
-mod test {
-
-    use serde_json::json;
-    use super::*;
-
-    #[test]
-    fn test_empty_spec() {
-        //given
-        let spec: Spec = serde_json::from_value(json!({})).expect("parsed spec");
-
-        let input: Value = serde_json::from_value(json!({
-            "b" : "b",
-            "c" : "c"
-        }))
-        .expect("parsed spec");
-
-        //when
-        let output = shift(input, &spec);
-
-        //then
-        assert_eq!(output, json!({}))
-    }
-
-    #[test]
-    fn test_move_not_present_value() {
-        //given
-        let spec: Spec = serde_json::from_value(json!({
-            "c" : "c"
-        }))
-        .expect("parsed spec");
-
-        let input: Value = serde_json::from_value(json!({
-            "a" : "a",
-            "b" : "b"
-        }))
-        .expect("parsed spec");
-
-        //when
-        let output = shift(input, &spec);
-
-        //then
-        assert_eq!(output, json!({}))
-    }
-
-    #[test]
-    fn test_move() {
-        //given
-        let spec: Spec = serde_json::from_value(json!({
-            "c" : "new_c"
-        }))
-        .expect("parsed spec");
-
-        let input: Value = serde_json::from_value(json!({
-            "a" : "a",
-            "b" : "b",
-            "c" : "c",
-        }))
-        .expect("parsed spec");
-
-        //when
-        let output = shift(input, &spec);
-
-        //then
-        assert_eq!(
-            output,
-            json!({
-                "new_c": "c"
-            })
-        )
-    }
-
-    #[test]
-    fn test_move_with_wildcard_and_vars() {
-        //given
-        let spec: Spec = serde_json::from_value(json!({
-            "*" : "new.&0"
-        }))
-        .expect("parsed spec");
-
-        let input: Value = serde_json::from_value(json!({
-            "a" : "aa",
-            "b" : "bb",
-            "c" : "cc",
-        }))
-        .expect("parsed spec");
-
-        //when
-        let output = shift(input, &spec);
-
-        //then
-        assert_eq!(
-            output,
-            json!({
-                "new": {
-                    "a" : "aa",
-                    "b" : "bb",
-                    "c" : "cc",
-                }
-            })
-        )
-    }
-
-    #[test]
-    fn test_move_wildcard_and_static() {
-        //given
-        let spec: Spec = serde_json::from_value(json!({
-            "a" : "new.a",
-            "*" : "new.&0"
-        }))
-        .expect("parsed spec");
-
-        let input: Value = serde_json::from_value(json!({
-            "a" : "aa",
-            "b" : "bb",
-            "c" : "cc",
-        }))
-        .expect("parsed spec");
-
-        //when
-        let output = shift(input, &spec);
-
-        //then
-        assert_eq!(
-            output,
-            json!({
-                "new": {
-                    "a" : "aa",
-                    "b" : "bb",
-                    "c" : "cc",
-                }
-            })
-        )
-    }
-
-    #[test]
-    fn test_wildcard_pointer() {
-        //given
-        let mut input = json!({
-            "a": {
-                "b": "b",
-                "c": "c"
-            }
-        });
-
-        //when
-        let pointer = find_mut(&mut input, &JsonPointer::from_dot_notation(".a.*"));
-
-        //then
-        assert_eq!(
-            pointer,
-            Some((JsonPointer::from_dot_notation(".a.b"), &mut json!("b")))
-        )
-    }
-
-    #[test]
-    fn test_or_pointer() {
-        //given
-        let mut input = json!({
-            "a": {
-                "b": "b",
-                "c": "c"
-            }
-        });
-
-        //when
-        let pointer = find_mut(&mut input, &JsonPointer::from_dot_notation(".a.c|d"));
-
-        //then
-        assert_eq!(
-            pointer,
-            Some((JsonPointer::from_dot_notation("a.c"), &mut json!("c")))
-        )
-    }
 }

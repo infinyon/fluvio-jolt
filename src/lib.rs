@@ -80,8 +80,8 @@ pub fn transform(input: Value, spec: &TransformSpec) -> Result<Value> {
     for entry in spec.entries() {
         match entry {
             SpecEntry::Shift(shift) => result = shift.apply(&result)?,
-            SpecEntry::Default(spec) => result = default(result, &spec),
-            SpecEntry::Remove(spec) => result = remove(result, &spec),
+            SpecEntry::Default(spec) => result = default(result, spec),
+            SpecEntry::Remove(spec) => result = remove(result, spec),
         }
     }
     Ok(result)
