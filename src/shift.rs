@@ -306,6 +306,14 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
             let key = eval_at(at, path)?;
             match key {
                 Value::String(s) => Cow::Owned(s),
+                Value::Number(n) => Cow::Owned(n.to_string()),
+                Value::Bool(b) => {
+                    if b {
+                        Cow::Borrowed("true")
+                    } else {
+                        Cow::Borrowed("false")
+                    }
+                }
                 _ => return Err(Error::EvalString),
             }
         }
@@ -452,7 +460,7 @@ fn match_lhs<'ctx, 'input: 'ctx>(
             let m = get_match((*path_idx, *match_idx), path)?;
             Ok((
                 Some(MatchResult::OutputVal(Value::String(m.into()))),
-                vec![k],
+                get_matches(0, path)?.to_vec(),
             ))
         }
         Lhs::Amp(path_idx, match_idx) => {
@@ -466,11 +474,14 @@ fn match_lhs<'ctx, 'input: 'ctx>(
         Lhs::At(at) => {
             let val = eval_at(at, path)?;
 
-            Ok((Some(MatchResult::OutputVal(val)), vec![k]))
+            Ok((
+                Some(MatchResult::OutputVal(val)),
+                get_matches(0, path)?.to_vec(),
+            ))
         }
         Lhs::Square(lit) => Ok((
             Some(MatchResult::OutputVal(Value::String(lit.to_owned()))),
-            vec![k],
+            get_matches(0, path)?.to_vec(),
         )),
         Lhs::Pipes(pipes) => {
             for stars in pipes.iter() {
@@ -576,4 +587,18 @@ fn get_match<'ctx, 'input: 'ctx>(
     })?;
 
     Ok(m.clone())
+}
+
+fn get_matches<'ctx, 'input: 'ctx>(
+    idx: usize,
+    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
+) -> Result<&'ctx [Cow<'input, str>]> {
+    if idx >= path.len() {
+        return Err(Error::PathIndexOutOfRange {
+            idx: idx,
+            len: path.len(),
+        });
+    }
+
+    Ok(&path[path.len() - idx - 1].0)
 }

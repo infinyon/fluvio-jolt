@@ -228,6 +228,17 @@ fn test_parse_lhs_misc() {
         ))),
     }
     .run();
+    LhsTestCase {
+        expr: "@clientNameStuff.clientName",
+        expected: Lhs::At(Some((
+            0,
+            Box::new(Rhs(vec![
+                RhsPart::Key(RhsEntry::Key("clientNameStuff".into())),
+                RhsPart::Key(RhsEntry::Key("clientName".into())),
+            ])),
+        ))),
+    }
+    .run();
 }
 
 struct RhsTestCase<'a> {
@@ -474,6 +485,14 @@ fn test_parse_rhs_misc() {
             RhsPart::Key(RhsEntry::Key("ratings".into())),
             RhsPart::Key(RhsEntry::Amp(1, 0)),
             RhsPart::Key(RhsEntry::Key("label".into())),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "@clientNameStuff.clientName",
+        expected: Rhs(vec![
+            RhsPart::Key(RhsEntry::At(Some((0, "clientNameStuff".into())))),
+            RhsPart::Key(RhsEntry::Key("clientName".into())),
         ]),
     }
     .run();

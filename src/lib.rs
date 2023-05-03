@@ -61,7 +61,7 @@ pub use error::{Error, Result};
 ///     }
 ///   ]"#).unwrap();
 ///
-/// let output = transform(input, &spec);
+/// let output = transform(input, &spec).unwrap();
 ///
 /// assert_eq!(output, json!({
 ///     "data" : {

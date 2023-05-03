@@ -28,7 +28,7 @@ impl<'input> Parser<'input> {
 
         let res = match token.kind {
             TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
-            TokenKind::At => self.parse_at(0).map(Lhs::At),
+            TokenKind::At => self.parse_at(0, false).map(Lhs::At),
             TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
             _ => self.parse_pipes(),
@@ -46,7 +46,7 @@ impl<'input> Parser<'input> {
     }
 
     pub fn parse_rhs(&mut self) -> Result<Rhs> {
-        let rhs = self.parse_rhs_impl(0)?;
+        let rhs = self.parse_rhs_impl(0, false)?;
 
         if let Some(token) = self.input.next() {
             let token = token?;
@@ -59,7 +59,7 @@ impl<'input> Parser<'input> {
         Ok(rhs)
     }
 
-    fn parse_rhs_impl(&mut self, depth: usize) -> Result<Rhs> {
+    fn parse_rhs_impl(&mut self, depth: usize, return_on_dot: bool) -> Result<Rhs> {
         if depth > MAX_DEPTH {
             return Err(ParseError {
                 pos: self.input.pos(),
@@ -80,6 +80,10 @@ impl<'input> Parser<'input> {
                 }
                 TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => self.parse_rhs_part(depth)?,
                 TokenKind::Dot => {
+                    if return_on_dot {
+                        return Ok(Rhs(parts));
+                    }
+
                     // can't start with a dot and can't have consecutive dots
                     if parts.is_empty() || last_was_dot {
                         return Err(ParseError {
@@ -129,7 +133,7 @@ impl<'input> Parser<'input> {
             let token = token?;
             let res = match &token.kind {
                 TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                TokenKind::At => self.parse_at(depth).map(RhsEntry::At),
+                TokenKind::At => self.parse_at(depth, true).map(RhsEntry::At),
                 TokenKind::Key(_) => self.parse_key().map(RhsEntry::Key),
                 _ => break,
             }?;
@@ -201,7 +205,7 @@ impl<'input> Parser<'input> {
                 IndexOp::Literal(idx)
             }
             TokenKind::At => {
-                let at = self.parse_at(depth)?;
+                let at = self.parse_at(depth, true)?;
                 IndexOp::At(at)
             }
             _ => {
@@ -236,7 +240,7 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_at(&mut self, depth: usize) -> Result<Option<(usize, Box<Rhs>)>> {
+    fn parse_at(&mut self, depth: usize, return_on_dot: bool) -> Result<Option<(usize, Box<Rhs>)>> {
         self.assert_next(TokenKind::At)?;
 
         let token = match self.input.peek() {
@@ -249,7 +253,7 @@ impl<'input> Parser<'input> {
             assert_close_prnth = true;
         }
 
-        let rhs = self.parse_rhs_impl(depth + 1)?;
+        let rhs = self.parse_rhs_impl(depth + 1, return_on_dot && !assert_close_prnth)?;
 
         let token = match self.input.peek() {
             Some(token) => token?,
@@ -313,7 +317,7 @@ impl<'input> Parser<'input> {
                     }
                 };
                 self.assert_next(TokenKind::Comma)?;
-                let rhs = self.parse_rhs_impl(depth + 1)?;
+                let rhs = self.parse_rhs_impl(depth + 1, return_on_dot && !assert_close_prnth)?;
                 if assert_close_prnth {
                     self.assert_next(TokenKind::ClosePrnth)?;
                 }
