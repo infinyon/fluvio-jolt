@@ -14,14 +14,14 @@ const ROOT_KEY: &str = "root";
 
 type Obj = IndexMap<LhsWithHash, Val, Xxh3Builder>;
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 enum Val {
     Obj(Box<Obj>),
     Rhs(Rhs),
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Shift(Obj);
 
 impl Transform for Shift {

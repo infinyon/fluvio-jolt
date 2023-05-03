@@ -57,7 +57,7 @@ pub fn test_dir(dir_path: &str, operation: &str) {
         }]);
         let spec: TransformSpec = serde_json::from_value(val).unwrap();
 
-        let output = transform(case.input, &spec);
+        let output = transform(case.input, &spec).unwrap();
 
         if output != case.expected {
             let expected = serde_json::to_string_pretty(&case.expected).unwrap();
