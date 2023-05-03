@@ -23,6 +23,8 @@ pub enum Error {
     InvalidIndexVal(serde_json::Value),
     #[error("Key not found in object:{0}")]
     KeyNotFound(String),
+    #[error("Expression didn't evaluate to a string.")]
+    EvalString,
 }
 
 pub type Result<T> = StdResult<T, Error>;

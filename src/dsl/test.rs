@@ -220,6 +220,14 @@ fn test_parse_lhs_misc() {
         ))),
     }
     .run();
+    LhsTestCase {
+        expr: "@(3,foo\\.bar)",
+        expected: Lhs::At(Some((
+            3,
+            Box::new(Rhs(vec![RhsPart::Key(RhsEntry::Key("foo.bar".into()))])),
+        ))),
+    }
+    .run();
 }
 
 struct RhsTestCase<'a> {

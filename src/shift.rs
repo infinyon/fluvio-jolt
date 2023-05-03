@@ -46,7 +46,7 @@ fn apply<'ctx, 'input: 'ctx>(
         obj,
         path,
         path.last().unwrap().0[0].clone(),
-        &Value::Null,
+        &path.last().unwrap().1,
         out,
         LhsSelection::Infallible,
     )?;
@@ -306,7 +306,7 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
             let key = eval_at(at, path)?;
             match key {
                 Value::String(s) => Cow::Owned(s),
-                _ => return Err(Error::UnexpectedRhsEntry),
+                _ => return Err(Error::EvalString),
             }
         }
         RhsEntry::Key(key) => Cow::Borrowed(key.as_str()),
@@ -316,6 +316,8 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
 }
 
 fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value> {
+    dbg!(key);
+    dbg!(v);
     let obj = v.as_object().ok_or(Error::UnexpectedRhsEntry)?;
 
     match obj.get(key) {

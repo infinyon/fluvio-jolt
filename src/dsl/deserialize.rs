@@ -29,7 +29,7 @@ impl<'de> Visitor<'de> for RhsVisitor {
     where
         E: de::Error,
     {
-        Rhs::parse(value).map_err(|e| E::custom(e.to_string()))
+        Rhs::parse(value).map_err(|e| E::custom(format!("failed to parse: {value}.error={e}")))
     }
 }
 
@@ -46,7 +46,8 @@ impl<'de> Visitor<'de> for LhsVisitor {
     where
         E: de::Error,
     {
-        let lhs = Lhs::parse(value).map_err(|e| E::custom(e.to_string()))?;
+        let lhs = Lhs::parse(value)
+            .map_err(|e| E::custom(format!("failed to parse: {value}.error={e}")))?;
         Ok(LhsWithHash {
             lhs,
             input: value.to_owned(),
