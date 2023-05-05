@@ -308,47 +308,4 @@ mod test {
             )])
         );
     }
-
-    // #[test]
-    // fn test_spec_iter_preserves_order() {
-    //     let spec = r#"
-    //     [
-    //         {
-    //             "operation": "shift",
-    //             "spec": {
-    //                 "id": "__data.id",
-    //                 "name": "__data.name",
-    //                 "account": "__data.account",
-    //                 "address" : {
-    //                     "country": "ext.country",
-    //                     "city": "ext.city",
-    //                     "phones": ["12345","00000"]
-    //                 },
-    //                 "*": "&0"
-    //             }
-    //         }
-    //     ]"#;
-    //     let result: TransformSpec = serde_json::from_str(spec).expect("parsed transform spec");
-
-    //     let spec_entry = result.entries().next().expect("one spec entry");
-
-    //     let items_vec = spec_entry
-    //         .spec
-    //         .iter()
-    //         .map(|(path, item)| format!("{}:{}", path.join_rfc6901(), item))
-    //         .collect::<Vec<String>>();
-    //     assert_eq!(
-    //         items_vec,
-    //         vec![
-    //             "/id:\"__data.id\"",
-    //             "/name:\"__data.name\"",
-    //             "/account:\"__data.account\"",
-    //             "/address/country:\"ext.country\"",
-    //             "/address/city:\"ext.city\"",
-    //             "/address/phones/0:\"12345\"",
-    //             "/address/phones/1:\"00000\"",
-    //             "/*:\"&0\"",
-    //         ]
-    //     );
-    // }
 }
