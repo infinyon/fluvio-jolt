@@ -33,17 +33,23 @@ impl Transform for Shift {
         apply(&self.0, &mut path, &mut out)?;
 
         path.pop().unwrap();
+        // path should always be empty at this point
+        // if not, the implementation is broken
         assert!(path.is_empty());
 
         Ok(out)
     }
 }
 
+// Apply an object from spec to the input
+// input is passed using the path and the current input should be
+// at the tip of the path
 fn apply<'ctx, 'input: 'ctx>(
     obj: &'input Obj,
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     out: &'ctx mut Value,
 ) -> Result<()> {
+    // run the infallible lhs exprs first
     match_obj_and_key_impl(
         obj,
         path,
@@ -96,6 +102,9 @@ fn apply<'ctx, 'input: 'ctx>(
     Ok(())
 }
 
+// Match and object in the spec with a key/value pair from the input
+// This function only runs the k/v pairs that have a fallible lhs in the spec
+// The infallible ones should be run sparately
 fn match_obj_and_key<'ctx, 'input: 'ctx>(
     obj: &'input Obj,
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
@@ -104,6 +113,7 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
     out: &'ctx mut Value,
 ) -> Result<()> {
     if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Literal)? {
+        // Return early if we already matched a k/v pair
         return Ok(());
     }
     if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Amp)? {
@@ -122,18 +132,31 @@ fn lhs_is_fallible(lhs: &Lhs) -> bool {
 
 #[derive(PartialEq)]
 enum LhsSelection {
+    // Infallible lhs exprs include
+    // @, # and $
     Infallible,
+    // Literal lhs like `my_key`
     Literal,
+    // Amp lhs `&`
     Amp,
+    // Lhs including Pipes and stars like `hello*|*world`
     Pipes,
 }
 
+// match an object in the spec with a k/v pair in the input
+// has a filter to dictate which kind of lhs expr are ran
+// this allows to run the lhs exprs in a specific order
+// We should ideally do this before the execution time but it is
+// implemented like this to make it simpler for now
 fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
     obj: &'input Obj,
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     k: Cow<'input, str>,
     v: &'input Value,
     out: &'ctx mut Value,
+    // Used to filter the lhs expressions that are used for matching
+    // It is necessary because there is a sepcific order of Lhs expression
+    // types to process according to the original implementation of jolt
     selection: LhsSelection,
 ) -> Result<bool> {
     let mut matched = false;
@@ -207,6 +230,7 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
     Ok(matched)
 }
 
+// Evaluate an @ expression into a json value using the given path
 fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
     let at = match at {
         Some(at) => at,
@@ -225,6 +249,7 @@ fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)])
     eval_rhs(&at.1, v.1, path)
 }
 
+// Evaluate a rhs expression into a json value using the given path
 fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
     let mut v = v;
 
@@ -287,6 +312,7 @@ fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Resul
     Ok(Value::clone(v))
 }
 
+// Evaluate a rhs expression into a string
 fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
     entry: &'input RhsEntry,
     path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
@@ -314,6 +340,8 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
     Ok(cow)
 }
 
+// index into an object using a given key
+// errors if key is not found
 fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value> {
     let obj = v.as_object().ok_or(Error::UnexpectedRhsEntry)?;
 
