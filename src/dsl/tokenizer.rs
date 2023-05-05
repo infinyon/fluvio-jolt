@@ -84,6 +84,8 @@ impl<'input> Tokenizer<'input> {
         Some(Ok(self.cache.as_ref().unwrap()))
     }
 
+    // check if it is possible to get an index value from the tip of input
+    // intended to be used with `get_idx`
     pub fn can_get_idx(&mut self) -> Option<Result<bool, ParseError>> {
         self.peek().map(|res| {
             res.map(|token| match &token.kind {
@@ -97,6 +99,11 @@ impl<'input> Tokenizer<'input> {
         })
     }
 
+    // Parses a usize value from the tip of the input and returns it
+    // This is a hacky function introduced to implement parsing something like
+    // `&123abc` which is interpreted as &123 + abc by the original implementation
+    // Maybe the parsing can be fixed to do this more naturally in the future.
+    // This function panics if called without checking with `can_get_idx` first.
     pub fn get_idx(&mut self) -> usize {
         let token = self.next().unwrap().unwrap();
 
@@ -125,7 +132,7 @@ impl<'input> Tokenizer<'input> {
 
                 k[..idx + 1].parse().unwrap()
             }
-            _ => unreachable!(),
+            _ => panic!("can't get idx from tokenizer"),
         }
     }
 }
