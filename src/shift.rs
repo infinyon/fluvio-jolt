@@ -1,9 +1,11 @@
 use std::borrow::Cow;
+
 use indexmap::IndexMap;
 use serde_json::Value;
-use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp, RhsPart};
 use xxhash_rust::xxh3::Xxh3Builder;
 use serde::Deserialize;
+
+use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp, RhsPart};
 use crate::transform::Transform;
 use crate::{Error, Result};
 

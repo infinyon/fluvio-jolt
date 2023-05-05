@@ -1,8 +1,10 @@
-use super::ast::{Rhs, Lhs};
+use std::hash::Hash;
 use std::fmt;
+
 use serde::de::{self, Visitor};
-use core::hash::Hash;
 use serde::{de::Deserializer, Deserialize};
+
+use super::ast::{Rhs, Lhs};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LhsWithHash {
