@@ -1,0 +1,80 @@
+{
+  "input": {
+    "meta": {
+      "credit": "PACER: Federal Court Records",
+      "url": "https://pacer.uscourts.gov/file-case/court-cmecf-lookup/data.json",
+      "last_updated": "Wed, 03 May 2023 06:10:06 -0400"
+    },
+    "data": [
+      {
+        "title": "U.S. Court of Appeals, First Circuit BAP",
+        "court_name": "United States Court of Appeals For the First Circuit",
+        "software_version": "NextGen CM/ECF Appellate Release 1.7.1",
+        "web_url": "https://www.bap1.uscourts.gov/nextgen-cmecf",
+        "login_url": "https://ecf.ca1.uscourts.gov",
+        "circuit": "01",
+        "court_id": "01BAP",
+        "type": "Appeals"
+      },
+      {
+        "title": "U.S. Court of Appeals, Second Circuit",
+        "court_name": "Court of Appeals, 2nd Circuit",
+        "software_version": "NextGen CM/ECF Appellate Release 1.6",
+        "web_url": "http://www.ca2.uscourts.gov/clerk/case_filing/electronic_filing/efiling_info.html",
+        "rss_url": "https://ecf.ca2.uscourts.gov/n/beam/servlet/TransportRoom?servlet=RSSGenerator",
+        "login_url": "https://ecf.ca2.uscourts.gov",
+        "circuit": "02",
+        "court_id": "02CA",
+        "type": "Appeals"
+      },
+      {
+        "title": "U.S. Court of Appeals, Fourth Circuit",
+        "court_name": "United States Court of Appeals For the Fourth Circuit",
+        "software_version": "NextGen CM/ECF Appellate Release 1.7",
+        "go_live_date": "04/01/2008",
+        "web_url": "http://www.ca4.uscourts.gov/caseinformationefiling/efiling_cm-ecf",
+        "rss_url": "https://ecf.ca4.uscourts.gov/n/beam/servlet/TransportRoom?servlet=RSSGenerator",
+        "login_url": "https://ecf.ca4.uscourts.gov",
+        "circuit": "04",
+        "court_id": "04CA",
+        "type": "Appeals"
+      }
+    ]
+  },
+  "spec": {
+    "data": {
+      "*": {
+        "rss_url": {
+          "@1": "data[]"
+        }
+      }
+    }
+  },
+  "expected": {
+    "data": [
+      {
+        "title": "U.S. Court of Appeals, Second Circuit",
+        "court_name": "Court of Appeals, 2nd Circuit",
+        "software_version": "NextGen CM/ECF Appellate Release 1.6",
+        "web_url": "http://www.ca2.uscourts.gov/clerk/case_filing/electronic_filing/efiling_info.html",
+        "rss_url": "https://ecf.ca2.uscourts.gov/n/beam/servlet/TransportRoom?servlet=RSSGenerator",
+        "login_url": "https://ecf.ca2.uscourts.gov",
+        "circuit": "02",
+        "court_id": "02CA",
+        "type": "Appeals"
+      },
+      {
+        "title": "U.S. Court of Appeals, Fourth Circuit",
+        "court_name": "United States Court of Appeals For the Fourth Circuit",
+        "software_version": "NextGen CM/ECF Appellate Release 1.7",
+        "go_live_date": "04/01/2008",
+        "web_url": "http://www.ca4.uscourts.gov/caseinformationefiling/efiling_cm-ecf",
+        "rss_url": "https://ecf.ca4.uscourts.gov/n/beam/servlet/TransportRoom?servlet=RSSGenerator",
+        "login_url": "https://ecf.ca4.uscourts.gov",
+        "circuit": "04",
+        "court_id": "04CA",
+        "type": "Appeals"
+      }
+    ]
+  }
+}
