@@ -1,12 +1,11 @@
 use std::fs::File;
 use serde_json::Value;
-use serde::Serialize;
 use serde::Deserialize;
 use fluvio_jolt::TransformSpec;
 
 mod java;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct TestData {
     input: Value,
     spec: TransformSpec,
@@ -47,7 +46,7 @@ fn do_test(name: &str) {
         .unwrap_or_else(|err| panic!("unable to parse file for test `{}`: {:?}", name, err));
 
     //when
-    let result = fluvio_jolt::transform(input, &spec);
+    let result = fluvio_jolt::transform(input, &spec).unwrap();
 
     //then
     assert_eq!(result, expected, "failed assertion for test `{}`", name);

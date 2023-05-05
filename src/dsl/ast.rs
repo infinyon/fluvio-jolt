@@ -1,13 +1,14 @@
 use super::parser::Parser;
 use super::ParseError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Lhs {
     DollarSign(usize, usize),
     Amp(usize, usize),
     At(Option<(usize, Box<Rhs>)>),
     Square(String),
     Pipes(Vec<Stars>),
+    Literal(String),
 }
 
 impl Lhs {
@@ -16,26 +17,32 @@ impl Lhs {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Stars(pub Vec<String>);
 
-#[derive(Debug, PartialEq)]
-pub struct Rhs(pub Vec<RhsEntry>);
+#[derive(Debug, PartialEq, Clone, Eq)]
+pub struct Rhs(pub Vec<RhsPart>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
+pub enum RhsPart {
+    Index(IndexOp),
+    CompositeKey(Vec<RhsEntry>),
+    Key(RhsEntry),
+}
+
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsEntry {
     Amp(usize, usize),
     At(Option<(usize, Box<Rhs>)>),
-    Index(IndexOp),
     Key(String),
-    Dot,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub enum IndexOp {
     Square(usize),
     Amp(usize, usize),
     Literal(usize),
+    At(Option<(usize, Box<Rhs>)>),
     Empty,
 }
 

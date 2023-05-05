@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::str::FromStr;
 
 #[derive(Debug, Clone, Eq, PartialEq)]

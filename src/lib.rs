@@ -3,6 +3,8 @@ mod shift;
 mod default;
 mod remove;
 mod pointer;
+mod transform;
+mod error;
 #[cfg(not(feature = "fuzz"))]
 mod dsl;
 #[cfg(feature = "fuzz")]
@@ -10,14 +12,16 @@ pub mod dsl;
 
 use serde_json::{Map, Value};
 use serde_json::map::Entry;
+use transform::Transform;
 
-use crate::shift::shift;
 use crate::default::default;
 use crate::remove::remove;
-use crate::spec::Operation;
+use crate::spec::SpecEntry;
 
 pub use spec::TransformSpec;
 use crate::pointer::JsonPointer;
+
+pub use error::{Error, Result};
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///
@@ -57,7 +61,7 @@ use crate::pointer::JsonPointer;
 ///     }
 ///   ]"#).unwrap();
 ///
-/// let output = transform(input, &spec);
+/// let output = transform(input, &spec).unwrap();
 ///
 /// assert_eq!(output, json!({
 ///     "data" : {
@@ -71,16 +75,16 @@ use crate::pointer::JsonPointer;
 /// ```
 ///
 /// Checkout supported operations in [TransformSpec] docs.
-pub fn transform(input: Value, spec: &TransformSpec) -> Value {
+pub fn transform(input: Value, spec: &TransformSpec) -> Result<Value> {
     let mut result = input;
     for entry in spec.entries() {
-        match entry.operation {
-            Operation::Shift => result = shift(result, &entry.spec),
-            Operation::Default => result = default(result, &entry.spec),
-            Operation::Remove => result = remove(result, &entry.spec),
+        match entry {
+            SpecEntry::Shift(shift) => result = shift.apply(&result)?,
+            SpecEntry::Default(spec) => result = default(result, spec),
+            SpecEntry::Remove(spec) => result = remove(result, spec),
         }
     }
-    result
+    Ok(result)
 }
 
 pub(crate) fn insert(dest: &mut Value, position: JsonPointer, val: Value) {
@@ -145,7 +149,7 @@ mod test {
             "a": "b",
             "c": "d"
         });
-        let result = transform(source, &spec);
+        let result = transform(source, &spec).unwrap();
 
         assert_eq!(
             result,

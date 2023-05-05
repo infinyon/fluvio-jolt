@@ -83,6 +83,58 @@ impl<'input> Tokenizer<'input> {
 
         Some(Ok(self.cache.as_ref().unwrap()))
     }
+
+    // check if it is possible to get an index value from the tip of input
+    // intended to be used with `get_idx`
+    pub fn can_get_idx(&mut self) -> Option<Result<bool, ParseError>> {
+        self.peek().map(|res| {
+            res.map(|token| match &token.kind {
+                TokenKind::Key(k) => k
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false),
+                _ => false,
+            })
+        })
+    }
+
+    // Parses a usize value from the tip of the input and returns it
+    // This is a hacky function introduced to implement parsing something like
+    // `&123abc` which is interpreted as &123 + abc by the original implementation
+    // Maybe the parsing can be fixed to do this more naturally in the future.
+    // This function panics if called without checking with `can_get_idx` first.
+    pub fn get_idx(&mut self) -> usize {
+        let token = self.next().unwrap().unwrap();
+
+        match token.kind {
+            TokenKind::Key(k) => {
+                let mut idx = 0;
+
+                for (i, c) in k.char_indices() {
+                    if !c.is_ascii_digit() {
+                        break;
+                    } else {
+                        idx = i;
+                    }
+                }
+
+                let mut k = k;
+
+                let rest = k.split_off(idx + 1);
+
+                if !rest.is_empty() {
+                    self.cache = Some(Token {
+                        pos: token.pos,
+                        kind: TokenKind::Key(rest),
+                    });
+                }
+
+                k[..idx + 1].parse().unwrap()
+            }
+            _ => panic!("can't get idx from tokenizer"),
+        }
+    }
 }
 
 impl<'input> Iterator for Tokenizer<'input> {
