@@ -7,4 +7,4 @@ description: JSON to JSON transformation Smartmodule
 license: e.g. Apache2
 manifest:
   - "./SmartModule.toml"
-  - ../../target/wasm32-unknown-unknown/release-lto/jolt.wasm
+  - ../target/wasm32-unknown-unknown/release-lto/jolt.wasm
