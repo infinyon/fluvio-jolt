@@ -8,19 +8,19 @@ Grammar for right hand side and left hand side expressions.
 
 ```
 Lhs: AtExpr |
-		DollarSignExpr |
-		SquareExpr |
-		AmpExpr |
-		Pipes;
+        DollarSignExpr |
+        SquareExpr |
+        AmpExpr |
+        Pipes;
 
 Rhs: ('[' IndexOp? ']' | RhsEntry+) RhsPart+;
 RhsPart: '[' IndexOp? ']' | '.' RhsEntry+;
 RhsEntry: AmpExpr |
-			AtExpr |
-			Key;
+            AtExpr |
+            Key;
 IndexOp: AmpExpr
-			| Number
-			| AtExpr;
+            | Number
+            | AtExpr;
 
 AtExpr: '@' AtTuple?;
 AtTuple: '(' Index ',' RHS ')' | '(' Rhs ')';
@@ -34,6 +34,12 @@ Stars: Key ( '*' Key )*;
 Key: <any string of characters>
 Number: '1-9' '0-9'+;
 ```
+
+## Syntactic sugar
+
+- `&(x)` is equal to `&(x, 0)`.
+- `$(x)` is equal to `$(x, 0)`.
+- `@(Rhs)` is equal to `@(0, Rhs)`,
 
 ## Escape sequences
 
@@ -50,10 +56,10 @@ Keys are executed in the order they are specified in the spec.
 So if the spec is:
 ```json
 {
-	"$": "a.b.c",
-	"hello": "world",
-	"@": "q.w.e",
-	"&": "b"
+    "$": "a.b.c",
+    "hello": "world",
+    "@": "q.w.e",
+    "&": "b"
 }
 ```
 The `$` will be executed first and then the `@` will be executed.
