@@ -1,0 +1,14 @@
+[package]
+name = "jolt"
+group = "infinyon"
+version = "0.2.0"
+apiVersion = "0.1.0"
+description = "JSON to JSON transformation Smartmodule"
+license = "Apache-2.0"
+visibility = "public"
+repository = "https://github.com/infinyon/fluvio-connectors"
+
+[[params]]
+name = "spec"
+description = "Transformation specification"
+optional = false
