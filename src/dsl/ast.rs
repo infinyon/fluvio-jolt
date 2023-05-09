@@ -5,7 +5,7 @@ use super::ParseError;
 pub enum Lhs {
     DollarSign(usize, usize),
     Amp(usize, usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Square(String),
     Pipes(Vec<Stars>),
     Literal(String),
@@ -33,7 +33,7 @@ pub enum RhsPart {
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsEntry {
     Amp(usize, usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Key(String),
 }
 
@@ -42,7 +42,7 @@ pub enum IndexOp {
     Square(usize),
     Amp(usize, usize),
     Literal(usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Empty,
 }
 

@@ -19,19 +19,25 @@ impl<'input> Parser<'input> {
         }
     }
 
-    pub fn parse_lhs(&mut self) -> Result<Lhs> {
-        let pos = self.input.pos();
-        let token = self.input.peek().ok_or(ParseError {
-            pos,
+    fn get_next(&mut self) -> Result<Token> {
+        self.input.next()?.ok_or(ParseError {
+            pos: self.input.pos(),
             cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
+        })
+    }
+
+    pub fn parse_lhs(&mut self) -> Result<Lhs> {
+        let token = self.get_next()?;
 
         let res = match token.kind {
             TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
             TokenKind::At => self.parse_at(0, false).map(Lhs::At),
             TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
-            _ => self.parse_pipes(),
+            _ => {
+                self.input.put_back(token);
+                self.parse_pipes()
+            }
         }?;
 
         if let Some(token) = self.input.next() {
@@ -334,16 +340,6 @@ impl<'input> Parser<'input> {
                 }
             }
         }
-    }
-
-    fn parse_dollar_sign(&mut self) -> Result<(usize, usize)> {
-        self.assert_next(TokenKind::DollarSign)?;
-        self.parse_amp_or_ds()
-    }
-
-    fn parse_amp(&mut self) -> Result<(usize, usize)> {
-        self.assert_next(TokenKind::Amp)?;
-        self.parse_amp_or_ds()
     }
 
     fn parse_amp_or_ds(&mut self) -> Result<(usize, usize)> {
