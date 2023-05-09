@@ -8,7 +8,7 @@ pub enum Lhs {
     At(usize, Box<Rhs>),
     Square(String),
     Pipes(Vec<Stars>),
-    Literal(String),
+    Empty,
 }
 
 impl Lhs {

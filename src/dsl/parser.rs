@@ -22,7 +22,7 @@ impl<'input> Parser<'input> {
     pub fn parse_lhs(&mut self) -> Result<Lhs> {
         let token = match self.input.next()? {
             Some(token) => token,
-            None => return Ok(Lhs::Literal(String::new())),
+            None => return Ok(Lhs::Pipes(vec![Stars(vec![String::new()])])),
         };
 
         let res = match token.kind {
@@ -32,7 +32,7 @@ impl<'input> Parser<'input> {
             TokenKind::Amp => self.parse_num_tuple().map(|t| Lhs::Amp(t.0, t.1)),
             TokenKind::Key(_) | TokenKind::Star => {
                 self.input.put_back(token);
-                self.parse_pipes_or_lit()
+                self.parse_pipes().map(Lhs::Pipes)
             }
             _ => {
                 return Err(ParseError {
@@ -262,18 +262,6 @@ impl<'input> Parser<'input> {
         Ok((idx0, idx1))
     }
 
-    fn parse_pipes_or_lit(&mut self) -> Result<Lhs> {
-        let pipes = self.parse_pipes()?;
-
-        // check if pipes is only a single string literal
-        // the raw indexing will never panic since we check the lengths first
-        if pipes.len() == 0 && pipes[0].0.len() == 0 {
-            Ok(Lhs::Literal(pipes[0].0[0]))
-        } else {
-            Ok(Lhs::Pipes(pipes))
-        }
-    }
-
     fn parse_pipes(&mut self) -> Result<Vec<Stars>> {
         let mut pipes = Vec::new();
 
@@ -308,74 +296,33 @@ impl<'input> Parser<'input> {
 
     fn parse_stars(&mut self) -> Result<Stars> {
         let mut stars = Vec::new();
+        let mut last_was_star = false;
 
-        #[derive(PartialEq)]
-        enum LookingFor {
-            Any,
-            Star,
-            Key,
-        }
-
-        let mut looking_for = LookingFor::Any;
-
-        loop {
-            let token = match self.input.peek() {
-                Some(token) => token,
-                None => {
-                    if looking_for != LookingFor::Star {
-                        stars.push(String::new());
-                    }
-
-                    return Ok(Stars(stars));
-                }
-            }?;
-
-            match &token.kind {
-                TokenKind::Key(_) => {
-                    if looking_for == LookingFor::Star {
-                        return Err(ParseError {
-                            pos: token.pos,
-                            cause: Box::new(ParseErrorCause::UnexpectedToken(
-                                self.input.next().unwrap().unwrap(),
-                            )),
-                        });
-                    }
-                    let token = self.input.next().unwrap().unwrap();
-
-                    looking_for = LookingFor::Star;
-
-                    match token.kind {
-                        TokenKind::Key(key) => stars.push(key),
-                        _ => unreachable!(),
-                    }
-                }
+        while let Some(token) = self.input.next()? {
+            match token.kind {
                 TokenKind::Star => {
-                    if looking_for == LookingFor::Key {
-                        return Err(ParseError {
-                            pos: token.pos,
-                            cause: Box::new(ParseErrorCause::UnexpectedToken(
-                                self.input.next().unwrap().unwrap(),
-                            )),
-                        });
-                    }
-
-                    if looking_for == LookingFor::Any {
+                    if stars.is_empty() {
                         stars.push(String::new());
                     }
 
-                    self.assert_next(TokenKind::Star)?;
-
-                    looking_for = LookingFor::Key;
+                    last_was_star = true;
+                }
+                TokenKind::Key(key) => {
+                    stars.push(key);
+                    last_was_star = false;
                 }
                 _ => {
-                    if looking_for != LookingFor::Star {
-                        stars.push(String::new());
-                    }
-
-                    return Ok(Stars(stars));
+                    self.input.put_back(token)?;
+                    break;
                 }
             }
         }
+
+        if last_was_star {
+            stars.push(String::new());
+        }
+
+        Ok(Stars(stars))
     }
 
     fn parse_index(key: &str, pos: usize) -> Result<usize> {

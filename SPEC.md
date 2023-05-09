@@ -31,7 +31,7 @@ AmpExpr: '&' NumTuple?;
 Pipes: Stars ( '|' Stars )*;
 Stars: Key ( '*' Key )*;
 
-Key: <any non-empty string of characters>
+Key: <any string of characters>
 Number: '1-9' '0-9'+;
 ```
 
