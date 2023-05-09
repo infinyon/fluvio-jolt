@@ -7,8 +7,8 @@ pub enum Lhs {
     Amp(usize, usize),
     At(usize, Box<Rhs>),
     Square(String),
+    /// Bunch of star expression separated by pipes
     Pipes(Vec<Stars>),
-    Empty,
 }
 
 impl Lhs {
@@ -17,6 +17,8 @@ impl Lhs {
     }
 }
 
+/// Bunch of literals separated by stars
+/// "*" is represented as vec!["", ""]
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Stars(pub Vec<String>);
 
