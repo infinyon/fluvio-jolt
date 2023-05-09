@@ -39,7 +39,6 @@ pub enum RhsEntry {
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum IndexOp {
-    Square(usize),
     Amp(usize, usize),
     Literal(usize),
     At(usize, Box<Rhs>),

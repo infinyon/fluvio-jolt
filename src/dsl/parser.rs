@@ -26,141 +26,8 @@ impl<'input> Parser<'input> {
         })
     }
 
-    pub fn parse_lhs(&mut self) -> Result<Lhs> {
-        let token = self.get_next()?;
-
-        let res = match token.kind {
-            TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
-            TokenKind::At => self.parse_at(0, false).map(Lhs::At),
-            TokenKind::DollarSign => self.parse_dollar_sign().map(|t| Lhs::DollarSign(t.0, t.1)),
-            TokenKind::Amp => self.parse_amp().map(|t| Lhs::Amp(t.0, t.1)),
-            _ => {
-                self.input.put_back(token);
-                self.parse_pipes()
-            }
-        }?;
-
-        if let Some(token) = self.input.next() {
-            let token = token?;
-            return Err(ParseError {
-                pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-            });
-        }
-
-        Ok(res)
-    }
-
-    pub fn parse_rhs(&mut self) -> Result<Rhs> {
-        let rhs = self.parse_rhs_impl(0, false)?;
-
-        if let Some(token) = self.input.next() {
-            let token = token?;
-            return Err(ParseError {
-                pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-            });
-        }
-
-        Ok(rhs)
-    }
-
-    fn parse_rhs_impl(&mut self, depth: usize, return_on_dot: bool) -> Result<Rhs> {
-        if depth > MAX_DEPTH {
-            return Err(ParseError {
-                pos: self.input.pos(),
-                cause: ParseErrorCause::MaximumRecursion(MAX_DEPTH).into(),
-            });
-        }
-
-        let mut parts = Vec::new();
-
-        let mut last_was_dot = false;
-
-        while let Some(token) = self.input.peek() {
-            let token = token?;
-            let part = match &token.kind {
-                TokenKind::OpenBrkt => {
-                    let idx_op = self.parse_index_op(depth)?;
-                    RhsPart::Index(idx_op)
-                }
-                TokenKind::Amp | TokenKind::At | TokenKind::Key(_) => self.parse_rhs_part(depth)?,
-                TokenKind::Dot => {
-                    if return_on_dot {
-                        return Ok(Rhs(parts));
-                    }
-
-                    // can't start with a dot and can't have consecutive dots
-                    if parts.is_empty() || last_was_dot {
-                        return Err(ParseError {
-                            pos: token.pos,
-                            cause: ParseErrorCause::UnexpectedToken(
-                                self.input.next().unwrap().unwrap(),
-                            )
-                            .into(),
-                        });
-                    }
-
-                    self.assert_next(TokenKind::Dot)?;
-
-                    last_was_dot = true;
-
-                    continue;
-                }
-                _ => {
-                    break;
-                }
-            };
-
-            last_was_dot = false;
-
-            parts.push(part);
-        }
-
-        // can't end with a dot
-        if last_was_dot {
-            return Err(ParseError {
-                pos: self.input.pos(),
-                cause: ParseErrorCause::UnexpectedToken(Token {
-                    pos: self.input.pos(),
-                    kind: TokenKind::Dot,
-                })
-                .into(),
-            });
-        }
-
-        Ok(Rhs(parts))
-    }
-
-    fn parse_rhs_part(&mut self, depth: usize) -> Result<RhsPart> {
-        let mut entries: Vec<RhsEntry> = Vec::new();
-
-        while let Some(token) = self.input.peek() {
-            let token = token?;
-            let res = match &token.kind {
-                TokenKind::Amp => self.parse_amp().map(|t| RhsEntry::Amp(t.0, t.1)),
-                TokenKind::At => self.parse_at(depth, true).map(RhsEntry::At),
-                TokenKind::Key(_) => self.parse_key().map(RhsEntry::Key),
-                _ => break,
-            }?;
-
-            entries.push(res);
-        }
-
-        let part = match entries.len() {
-            0 => RhsPart::Key(RhsEntry::Key("".to_owned())),
-            1 => RhsPart::Key(entries.remove(0)),
-            _ => RhsPart::CompositeKey(entries),
-        };
-
-        Ok(part)
-    }
-
     fn assert_next(&mut self, expected: TokenKind) -> Result<()> {
-        let got = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
+        let got = self.get_next()?;
         if expected == got.kind {
             Ok(())
         } else {
@@ -171,71 +38,149 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_key(&mut self) -> Result<String> {
-        let token = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
+    pub fn parse_lhs(&mut self) -> Result<Lhs> {
+        let token = self.get_next()?;
+
+        let res = match token.kind {
+            TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
+            TokenKind::At => self.parse_at_tuple(0).map(Lhs::At),
+            TokenKind::DollarSign => self.parse_idx_tuple().map(|t| Lhs::DollarSign(t.0, t.1)),
+            TokenKind::Amp => self.parse_idx_tuple().map(|t| Lhs::Amp(t.0, t.1)),
+            _ => {
+                self.input.put_back(token);
+                self.parse_pipes()
+            }
+        }?;
+
+        if let Some(token) = self.input.next()? {
+            return Err(ParseError {
+                pos: token.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+            });
+        }
+
+        Ok(res)
+    }
+
+    pub fn parse_rhs(&mut self) -> Result<Rhs> {
+        let rhs = self.parse_rhs_impl(0)?;
+
+        if let Some(token) = self.input.next()? {
+            return Err(ParseError {
+                pos: token.pos,
+                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+            });
+        }
+
+        Ok(rhs)
+    }
+
+    fn parse_rhs_impl(&mut self, depth: usize) -> Result<Rhs> {
+        if depth > MAX_DEPTH {
+            return Err(ParseError {
+                pos: self.input.pos(),
+                cause: ParseErrorCause::MaximumRecursion(MAX_DEPTH).into(),
+            });
+        }
+
+        let mut parts = Vec::new();
+
+        let token = match self.input.next()? {
+            Some(token) => token,
+            None => return Ok(Rhs(parts)),
+        };
 
         match token.kind {
-            TokenKind::Key(key) => Ok(key),
-            _ => Err(ParseError {
-                pos: self.input.pos(),
-                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-            }),
+            TokenKind::OpenBrkt => {
+                let idx_op = self.parse_idx_op(depth)?;
+                self.assert_next(TokenKind::CloseBrkt)?;
+                parts.push(RhsPart::Index(idx_op));
+            }
+            _ => {
+                self.input.put_back(token);
+                parts.push(self.parse_rhs_part()?);
+            }
         }
+
+        while let Some(token) = self.input.next()? {
+            match token.kind {
+                TokenKind::OpenBrkt => {
+                    let idx_op = self.parse_index_op(depth)?;
+                    self.assert_next(TokenKind::CloseBrkt)?;
+                    parts.push(RhsPart::Index(idx_op));
+                }
+                TokenKind::Dot => {
+                    parts.push(self.parse_rhs_part()?);
+                }
+                _ => {
+                    self.input.put_back(token)?;
+                    break;
+                }
+            }
+        }
+
+        Ok(Rhs(parts))
+    }
+
+    fn parse_rhs_part(&mut self, depth: usize) -> Result<RhsPart> {
+        let mut entries: Vec<RhsEntry> = Vec::new();
+
+        while let Some(token) = self.input.next()? {
+            let res = match token.kind {
+                TokenKind::Amp => self.parse_num_tuple().map(|t| RhsEntry::Amp(t.0, t.1))?,
+                TokenKind::At => self.parse_at_tuple(depth, true).map(RhsEntry::At)?,
+                TokenKind::Key(key) => RhsEntry::Key(key),
+                _ => {
+                    self.input.put_back(token)?;
+                    break;
+                }
+            }?;
+
+            entries.push(res);
+        }
+
+        let part = match entries.len() {
+            0 => RhsPart::Key(RhsEntry::Key(String::new())),
+            1 => RhsPart::Key(entries.remove(0)),
+            _ => RhsPart::CompositeKey(entries),
+        };
+
+        Ok(part)
     }
 
     fn parse_index_op(&mut self, depth: usize) -> Result<IndexOp> {
-        self.assert_next(TokenKind::OpenBrkt)?;
+        let token = self.get_next()?;
 
-        let pos = self.input.pos();
-        let token = self.input.peek().ok_or(ParseError {
-            pos,
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
-
-        let op = match &token.kind {
-            TokenKind::Square => {
-                self.assert_next(TokenKind::Square)?;
-                let idx = self.parse_index()?;
-                IndexOp::Square(idx)
-            }
+        let op = match token.kind {
             TokenKind::Amp => {
-                let amp = self.parse_amp()?;
-                IndexOp::Amp(amp.0, amp.1)
+                let t = self.parse_amp_tuple()?;
+                IndexOp::Amp(t.0, t.1)
             }
-            TokenKind::CloseBrkt => IndexOp::Empty,
-            TokenKind::Key(_) => {
-                let idx = self.parse_index()?;
-                IndexOp::Literal(idx)
+            TokenKind::CloseBrkt => {
+                self.input.put_back(token)?;
+                IndexOp::Empty
             }
+            TokenKind::Key(key) => IndexOp::Literal(Self::parse_index(&key, token.pos)?),
             TokenKind::At => {
-                let at = self.parse_at(depth, true)?;
-                IndexOp::At(at)
+                let t = self.parse_at_tuple(depth, true)?;
+                IndexOp::At(t.0, t.1)
             }
             _ => {
                 return Err(ParseError {
                     pos: token.pos,
-                    cause: Box::new(ParseErrorCause::UnexpectedToken(
-                        self.input.next().unwrap().unwrap(),
-                    )),
+                    cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
                 });
             }
         };
-
-        self.assert_next(TokenKind::CloseBrkt)?;
 
         Ok(op)
     }
 
     fn parse_square_lhs(&mut self) -> Result<String> {
-        self.assert_next(TokenKind::Square)?;
-
-        let token = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
+        let token = match self.input.next()? {
+            Some(token) => token,
+            None => return Ok(String::new()),
+        };
 
         match token.kind {
             TokenKind::Key(key) => Ok(key),
@@ -247,8 +192,6 @@ impl<'input> Parser<'input> {
     }
 
     fn parse_at(&mut self, depth: usize, return_on_dot: bool) -> Result<Option<(usize, Box<Rhs>)>> {
-        self.assert_next(TokenKind::At)?;
-
         let token = match self.input.peek() {
             Some(token) => token?,
             None => return Ok(None),
@@ -489,21 +432,10 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_index(&mut self) -> Result<usize> {
-        let token = self.input.next().ok_or(ParseError {
-            pos: self.input.pos(),
-            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-        })??;
-
-        match token.kind {
-            TokenKind::Key(key) => key.parse().map_err(|e| ParseError {
-                pos: token.pos,
-                cause: Box::new(ParseErrorCause::InvalidIndex(e)),
-            }),
-            _ => Err(ParseError {
-                pos: token.pos,
-                cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
-            }),
-        }
+    fn parse_index(key: &str, pos: usize) -> Result<usize> {
+        key.parse().map_err(|e| ParseError {
+            pos,
+            cause: Box::new(ParseErrorCause::InvalidIndex(e)),
+        })
     }
 }
