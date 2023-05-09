@@ -13,8 +13,8 @@ Lhs: AtExpr |
         AmpExpr |
         Pipes;
 
-Rhs: ('[' IndexOp? ']' | RhsEntry+) RhsPart+;
-RhsPart: '[' IndexOp? ']' | '.' RhsEntry+;
+Rhs: ('[' IndexOp? ']' | RhsEntry*) RhsPart*;
+RhsPart: '[' IndexOp? ']' | '.' RhsEntry*;
 RhsEntry: AmpExpr |
             AtExpr |
             Key;
@@ -31,7 +31,7 @@ AmpExpr: '&' NumTuple?;
 Pipes: Stars ( '|' Stars )*;
 Stars: Key ( '*' Key )*;
 
-Key: <any string of characters>
+Key: <any non-empty string of characters>
 Number: '1-9' '0-9'+;
 ```
 

@@ -20,16 +20,25 @@ impl<'input> Parser<'input> {
     }
 
     pub fn parse_lhs(&mut self) -> Result<Lhs> {
-        let token = self.get_next()?;
+        let token = match self.input.next()? {
+            Some(token) => token,
+            None => return Ok(Lhs::Literal(String::new())),
+        };
 
         let res = match token.kind {
             TokenKind::Square => self.parse_square_lhs().map(Lhs::Square),
             TokenKind::At => self.parse_at_tuple(0).map(|t| Lhs::At(t.0, t.1)),
             TokenKind::DollarSign => self.parse_num_tuple().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_num_tuple().map(|t| Lhs::Amp(t.0, t.1)),
-            _ => {
+            TokenKind::Key(_) | TokenKind::Star => {
                 self.input.put_back(token);
-                self.parse_pipes()
+                self.parse_pipes_or_lit()
+            }
+            _ => {
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: Box::new(ParseErrorCause::UnexpectedToken(token)),
+                });
             }
         }?;
 
@@ -253,39 +262,48 @@ impl<'input> Parser<'input> {
         Ok((idx0, idx1))
     }
 
-    fn parse_pipes(&mut self) -> Result<Lhs> {
+    fn parse_pipes_or_lit(&mut self) -> Result<Lhs> {
+        let pipes = self.parse_pipes()?;
+
+        // check if pipes is only a single string literal
+        // the raw indexing will never panic since we check the lengths first
+        if pipes.len() == 0 && pipes[0].0.len() == 0 {
+            Ok(Lhs::Literal(pipes[0].0[0]))
+        } else {
+            Ok(Lhs::Pipes(pipes))
+        }
+    }
+
+    fn parse_pipes(&mut self) -> Result<Vec<Stars>> {
         let mut pipes = Vec::new();
 
-        let pipes_to_lhs = |mut pipes: Vec<Stars>| {
-            if pipes.len() == 1 {
-                if pipes[0].0.len() == 1 {
-                    Lhs::Literal(pipes[0].0.pop().unwrap())
-                } else {
-                    Lhs::Pipes(pipes)
-                }
-            } else {
-                Lhs::Pipes(pipes)
-            }
-        };
-
-        loop {
-            let stars = self.parse_stars()?;
-
-            pipes.push(stars);
-
-            let token = match self.input.peek() {
-                Some(token) => token,
-                None => return Ok(pipes_to_lhs(pipes)),
-            }?;
-
+        while let Some(token) = self.input.next()? {
             match token.kind {
-                TokenKind::Pipe => {
-                    self.assert_next(TokenKind::Pipe)?;
-                    continue;
+                TokenKind::Key(_) | TokenKind::Star => {
+                    self.input.put_back(token)?;
+                    pipes.push(self.parse_stars()?);
+
+                    match self.input.next()? {
+                        Some(token) => {
+                            if token.kind == TokenKind::Pipe {
+                                continue;
+                            } else {
+                                self.input.put_back(token)?;
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
                 }
-                _ => return Ok(pipes_to_lhs(pipes)),
+                TokenKind::Pipe => pipes.push(Stars(Vec::new())),
+                _ => {
+                    self.input.put_back(token)?;
+                    break;
+                }
             }
         }
+
+        Ok(pipes)
     }
 
     fn parse_stars(&mut self) -> Result<Stars> {
