@@ -191,138 +191,85 @@ impl<'input> Parser<'input> {
         }
     }
 
-    fn parse_at(&mut self, depth: usize, return_on_dot: bool) -> Result<Option<(usize, Box<Rhs>)>> {
-        let token = match self.input.peek() {
-            Some(token) => token?,
-            None => return Ok(None),
+    fn parse_at_tuple(&mut self, depth: usize, return_on_dot: bool) -> Result<(usize, Box<Rhs>)> {
+        let token = match self.input.next()? {
+            Some(token) => token,
+            None => return Ok((0, Rhs(Vec::new()).into())),
         };
-        let mut assert_close_prnth = false;
-        if token.kind == TokenKind::OpenPrnth {
-            self.assert_next(TokenKind::OpenPrnth)?;
-            assert_close_prnth = true;
+
+        if token.kind != TokenKind::OpenPrnth {
+            self.input.put_back(token)?;
+            return Ok((0, Rhs(Vec::new()).into()));
         }
 
-        let rhs = self.parse_rhs_impl(depth + 1, return_on_dot && !assert_close_prnth)?;
+        let rhs_pos = self.input.pos();
+        let rhs = self.parse_rhs_impl(depth + 1)?;
 
-        let token = match self.input.peek() {
-            Some(token) => token?,
-            None => {
-                if rhs.0.len() == 1 {
-                    if let RhsPart::Key(RhsEntry::Key(k)) = rhs.0.get(0).unwrap() {
-                        if k.chars().all(|c| c.is_ascii_digit()) {
-                            let idx = k.parse().map_err(|e| ParseError {
-                                pos: self.input.pos(),
-                                cause: Box::new(ParseErrorCause::InvalidIndex(e)),
-                            })?;
+        let token = self.get_next()?;
 
-                            return Ok(Some((idx, Box::new(Rhs(Vec::new())))));
-                        }
-                    }
-                }
-
-                return Ok(Some((0, Box::new(rhs))));
-            }
-        };
-
-        match &token.kind {
+        let idx = match token.kind {
+            TokenKind::Comma => Self::rhs_to_idx(rhs, rhs_pos)?,
             TokenKind::ClosePrnth => {
-                if assert_close_prnth {
-                    self.assert_next(TokenKind::ClosePrnth)?;
-                    Ok(Some((0, Box::new(rhs))))
-                } else {
-                    Err(ParseError {
-                        pos: token.pos,
-                        cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
-                            pos: token.pos,
-                            kind: TokenKind::ClosePrnth,
-                        })),
-                    })
-                }
-            }
-            TokenKind::Comma => {
-                if rhs.0.len() != 1 {
-                    return Err(ParseError {
-                        pos: token.pos,
-                        cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
-                            pos: token.pos,
-                            kind: TokenKind::Comma,
-                        })),
-                    });
-                }
-                let mut rhs = rhs;
-                let idx = match rhs.0.pop().unwrap() {
-                    RhsPart::Key(RhsEntry::Key(key)) => key.parse().map_err(|e| ParseError {
-                        pos: token.pos,
-                        cause: Box::new(ParseErrorCause::InvalidIndex(e)),
-                    })?,
-                    _ => {
-                        return Err(ParseError {
-                            pos: token.pos,
-                            cause: Box::new(ParseErrorCause::UnexpectedToken(Token {
-                                pos: token.pos,
-                                kind: TokenKind::Comma,
-                            })),
-                        });
-                    }
-                };
-                self.assert_next(TokenKind::Comma)?;
-                let rhs = self.parse_rhs_impl(depth + 1, return_on_dot && !assert_close_prnth)?;
-                if assert_close_prnth {
-                    self.assert_next(TokenKind::ClosePrnth)?;
-                }
-                Ok(Some((idx, Box::new(rhs))))
+                return Ok((0, rhs.into()));
             }
             _ => {
-                if assert_close_prnth {
-                    Err(ParseError {
-                        pos: self.input.pos(),
-                        cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-                    })
-                } else {
-                    Ok(Some((0, Box::new(rhs))))
-                }
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: ParseErrorCause::UnexpectedToken(token).into(),
+                });
             }
-        }
+        };
+
+        let rhs = self.parse_rhs_impl(depth + 1)?;
+
+        self.assert_next(TokenKind::ClosePrnth)?;
+
+        Ok((idx, rhs.into()))
     }
 
-    fn parse_amp_or_ds(&mut self) -> Result<(usize, usize)> {
-        if self.input.can_get_idx() == Some(Ok(true)) {
-            let idx = self.input.get_idx();
-            return Ok((idx, 0));
-        }
-
-        let token = match self.input.peek() {
+    fn parse_num_tuple(&mut self) -> Result<(usize, usize)> {
+        let token = match self.input.next()? {
             Some(token) => token,
             None => return Ok((0, 0)),
-        }?;
+        };
 
-        match &token.kind {
-            TokenKind::OpenPrnth => {
-                self.assert_next(TokenKind::OpenPrnth)?;
-                let idx0 = self.parse_index()?;
-
-                let token = match self.input.peek() {
-                    Some(token) => token?,
-                    None => {
-                        return Err(ParseError {
-                            pos: 0,
-                            cause: Box::new(ParseErrorCause::UnexpectedEndOfInput),
-                        })
-                    }
-                };
-                if token.kind == TokenKind::ClosePrnth {
-                    self.assert_next(TokenKind::ClosePrnth)?;
-                    return Ok((idx0, 0));
-                }
-
-                self.assert_next(TokenKind::Comma)?;
-                let idx1 = self.parse_index()?;
-                self.assert_next(TokenKind::ClosePrnth)?;
-
-                Ok((idx0, idx1))
-            }
-            _ => Ok((0, 0)),
+        if token.kind != TokenKind::OpenPrnth {
+            self.input.put_back(token)?;
+            return Ok((0, 0));
         }
+
+        let get_idx = || {
+            let token = self.get_next()?;
+            match token.kind {
+                TokenKind::Key(key) => Self::parse_index(&key, token.pos),
+                _ => Err(ParseError {
+                    pos: token.pos,
+                    cause: ParseErrorCause::ExpectedIdx.into(),
+                }),
+            }
+        };
+
+        let idx0 = get_idx()?;
+
+        let token = self.get_next()?;
+        match token.kind {
+            TokenKind::Comma => (),
+            TokenKind::ClosePrnth => {
+                return Ok((idx0, 0));
+            }
+            _ => {
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: ParseErrorCause::UnexpectedToken(token).into(),
+                })
+            }
+        }
+
+        let idx1 = get_idx()?;
+
+        self.assert_next(TokenKind::ClosePrnth);
+
+        Ok((idx0, idx1))
     }
 
     fn parse_pipes(&mut self) -> Result<Lhs> {
@@ -437,5 +384,19 @@ impl<'input> Parser<'input> {
             pos,
             cause: Box::new(ParseErrorCause::InvalidIndex(e)),
         })
+    }
+
+    fn rhs_to_idx(mut rhs: Rhs, pos: usize) -> Result<usize> {
+        let key = match rhs.0.pop() {
+            Some(RhsPart::Key(RhsEntry::Key(key))) if rhs.0.is_empty() => key,
+            _ => {
+                return Err(ParseError {
+                    pos,
+                    cause: ParseErrorCause::ExpectedIdx.into(),
+                });
+            }
+        };
+
+        Self::parse_index(&key, pos)
     }
 }
