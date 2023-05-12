@@ -19,7 +19,7 @@
         "bar|baz": "a.b.d",
         "tuna": "a.b.e",
 
-        "tuna.*-*-*": "a.b.3Star",
+        "tuna\\.*-*-*": "a.b.3Star",
         "tuna_*-*": "a.b.2Star",
         "tuna-*": "a.b.1Star"
     },

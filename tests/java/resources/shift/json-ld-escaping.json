@@ -52,11 +52,11 @@
         // To accomplish this we escape the leading '@' chars both as spec matches (left hand side)
         //  and as output paths (right hand side)
         "\\@context": {
-            "name": "&1.Name",
-            "ingredient": "&1.Inputs",
+            "name": "&(1).Name",
+            "ingredient": "&(1).Inputs",
             "yield": "\\@context.Makes",
             // pass the rest thru
-            "*" : "&1.&"
+            "*" : "&(1).&"
         },
         "name": "Name",
         "ingredient": "Inputs",

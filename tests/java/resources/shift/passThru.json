@@ -30,7 +30,7 @@
 
         "author" : {
             "*" :{
-                "id|name" : "&2.[&1].&"   // This is a bit hokey, in that we need to enumerate the entire tree that we came down.
+                "id|name" : "&(2)[&(1)].&"   // This is a bit hokey, in that we need to enumerate the entire tree that we came down.
                                           // Note this could have been "author[&1].&"
             }
         }

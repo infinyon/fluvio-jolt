@@ -15,7 +15,7 @@
     "spec": {
         "photos" : {
             "*" : {
-                "@fileName": "photos[&1].@id"
+                "@(fileName)": "photos[&(1)].@(id)"
             }
         }
     },

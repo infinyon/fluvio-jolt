@@ -17,7 +17,7 @@
     "spec": {
         "data" : {
             // We can use the RHS @ sign to look down the tree to find a key for the output
-            "*" : "data.@clientId"
+            "*" : "data.@(clientId)"
         }
     },
 

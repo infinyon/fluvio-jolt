@@ -28,11 +28,11 @@
                 "value": "data.rating\\.primary"
             },
             "*": {
-                "value": "data.rating\\.&1"
+                "value": "data.rating\\.&(1)"
             }
         },
 
-        "foo.bar" : "foobar",
+        "foo\\.bar" : "foobar",
         "test" : {
             "use_as_data" : {
                 "data" : {

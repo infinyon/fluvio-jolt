@@ -63,8 +63,8 @@
     "spec": {
         "*": {
             "*": {
-                "0": "&2.&1.bucketFieldName",
-                "1": "&2.&1.searchType"
+                "0": "&(2).&(1).bucketFieldName",
+                "1": "&(2).&(1).searchType"
             }
         }
     },

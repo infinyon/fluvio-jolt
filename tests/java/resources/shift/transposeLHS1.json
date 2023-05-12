@@ -8,7 +8,7 @@
 
     "spec": {
         "data" : {
-            "@clientName" : "CLIENTNAME"  // verify that we can look down the tree
+            "@(clientName)" : "CLIENTNAME"  // verify that we can look down the tree
         }
     },
 

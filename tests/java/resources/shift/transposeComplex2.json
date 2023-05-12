@@ -12,7 +12,7 @@
     "spec": {
         "data" : {
             // Verify LHS canonical form
-            "@(clientNameStuff.clientName)" : "bookMap.@clientId"
+            "@(clientNameStuff.clientName)" : "bookMap.@(clientId)"
         }
     },
 

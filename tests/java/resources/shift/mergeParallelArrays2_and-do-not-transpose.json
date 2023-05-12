@@ -8,14 +8,14 @@
         "states": {
             "*": {
                 "*": {
-                    "$": "states[&2].state"
+                    "$": "states[&(2)].state"
                 }
             }
         },
         "capitals": {
             "*": {
                 "*": {
-                    "$": "states[&2].capital"
+                    "$": "states[&(2)].capital"
                 }
             }
         }

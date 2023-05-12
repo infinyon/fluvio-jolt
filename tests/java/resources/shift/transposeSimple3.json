@@ -5,7 +5,7 @@
     },
 
     "spec": {
-        "@clientName" : "@clientId"   // verify that data can be transposed at the root level
+        "@(clientName)" : "@(clientId)"   // verify that data can be transposed at the root level
     },
 
     "expected": {

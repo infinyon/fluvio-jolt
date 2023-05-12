@@ -23,7 +23,7 @@
                 "value": "data.\\$rating"
             },
             "*": {
-                "value": "data.\\$rating-&1"
+                "value": "data.\\$rating-&(1)"
             }
         }
     },

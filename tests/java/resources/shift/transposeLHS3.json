@@ -11,7 +11,7 @@
     "spec": {
         "*" : {  // catch the data
             "*": {  // for all array elements
-                "@&1": "CLIENTNAME" // match the key "data" based on what the key was two levels up
+                "@(&(1))": "CLIENTNAME" // match the key "data" based on what the key was two levels up
             }
         }
     },

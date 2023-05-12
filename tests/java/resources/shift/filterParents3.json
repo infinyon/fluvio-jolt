@@ -36,7 +36,7 @@
                     "PhysicalData": {
                         // @2 means look up the tree three levels (0, 1, 2), grab what is there (the whole planet object)
                         // and then use that as the data to write to "PlanetsWithMoons"
-                        "@2": "PlanetsWithMoons[]"
+                        "@(2,)": "PlanetsWithMoons[]"
                     }
                 }
             }

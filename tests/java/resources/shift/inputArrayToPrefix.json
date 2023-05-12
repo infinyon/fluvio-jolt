@@ -17,9 +17,9 @@
     "spec": {
         "Photos": {
             "*": {
-                "Id": "photo-&1-id",
-                "Caption": "photo-&1-caption",
-                "Url": "photo-&1-url"
+                "Id": "photo-&(1)-id",
+                "Caption": "photo-&(1)-caption",
+                "Url": "photo-&(1)-url"
             }
         }
     },

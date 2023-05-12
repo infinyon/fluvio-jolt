@@ -9,7 +9,7 @@
             "*": {
                 "Ar*": { // only match states that start with "Ar"
                          // for those states, grab the captital, and use that as the output value
-                    "@(3,capitals[&1])": "states.&1"
+                    "@(3,capitals[&(1)])": "states.&(1)"
                 }
             }
         }

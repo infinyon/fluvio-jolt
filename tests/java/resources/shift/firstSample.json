@@ -22,10 +22,10 @@
             // match any children of "rating".
             // Shiftr has a precendence order when matching, so the "*" will match anything that isn't "primary"
             "*": {
-                "value": "SecondaryRatings.&1.Value", // &1 means, go up one level and grab that value and substitute it in
-                "max": "SecondaryRatings.&1.Range",   //  in this example &1 = "quality"
+                "value": "SecondaryRatings.&(1).Value", // &1 means, go up one level and grab that value and substitute it in
+                "max": "SecondaryRatings.&(1).Range",   //  in this example &1 = "quality"
 
-                "$": "SecondaryRatings.&1.Id"
+                "$": "SecondaryRatings.&(1).Id"
                 // we want "quality" to be a value field in the output under
                 //  "SecondaryRatings.quality.Id", but "quality" is an input key not an input value.
                 // The "$" operator means use the input key, instead of the input value, to place in the output

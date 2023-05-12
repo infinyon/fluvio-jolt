@@ -11,7 +11,7 @@
 
     "spec": {
         "data" : {
-            "@clientNameStuff.clientName" : "bookMap.@clientId"
+            "@(clientNameStuff.clientName)" : "bookMap.@(clientId)"
         }
     },
 

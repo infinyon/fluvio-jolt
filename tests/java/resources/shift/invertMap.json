@@ -44,7 +44,7 @@
                         "*" : {
                             // We need to match the leaf levels of the inputs, and then use the $ wildcard, to pull the key of our parent
                             "*" : {
-                                "$4" : "&1.&3.[]"  // trailing [] tells Shiftr to make an array, even if there is only one output
+                                "$(4)" : "&(1).&(3)[]"  // trailing [] tells Shiftr to make an array, even if there is only one output
                             }
                         }
                     }
