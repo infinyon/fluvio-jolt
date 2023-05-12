@@ -30,7 +30,7 @@ impl<'input> Parser<'input> {
             TokenKind::At => self.parse_at_tuple(0).map(|t| Lhs::At(t.0, t.1)),
             TokenKind::DollarSign => self.parse_num_tuple().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_num_tuple().map(|t| Lhs::Amp(t.0, t.1)),
-            TokenKind::Key(_) | TokenKind::Star => {
+            TokenKind::Key(_) | TokenKind::Star | TokenKind::Pipe => {
                 self.input.put_back(token)?;
                 self.parse_pipes_or_lit()
             }
@@ -278,30 +278,56 @@ impl<'input> Parser<'input> {
     fn parse_pipes(&mut self) -> Result<Vec<Stars>> {
         let mut pipes = Vec::new();
 
+        #[derive(PartialEq)]
+        enum Last {
+            None,
+            Stars,
+            Pipe,
+        }
+
+        let mut last = Last::None;
+
         while let Some(token) = self.input.next()? {
             match token.kind {
                 TokenKind::Key(_) | TokenKind::Star => {
-                    self.input.put_back(token)?;
-                    pipes.push(self.parse_stars()?);
-
-                    match self.input.next()? {
-                        Some(token) => {
-                            if token.kind == TokenKind::Pipe {
-                                continue;
-                            } else {
-                                self.input.put_back(token)?;
-                                break;
-                            }
+                    match last {
+                        Last::None | Last::Pipe => {
+                            self.input.put_back(token)?;
+                            pipes.push(self.parse_stars()?);
                         }
-                        None => break,
+                        Last::Stars => {
+                            return Err(ParseError {
+                                pos: token.pos,
+                                cause: ParseErrorCause::UnexpectedToken(token).into(),
+                            })
+                        }
                     }
+
+                    last = Last::Stars;
                 }
-                TokenKind::Pipe => pipes.push(Stars(Vec::new())),
+                TokenKind::Pipe => {
+                    match last {
+                        Last::None => pipes.push(Stars(vec![String::new()])),
+                        Last::Stars => (),
+                        Last::Pipe => {
+                            return Err(ParseError {
+                                pos: token.pos,
+                                cause: ParseErrorCause::UnexpectedToken(token).into(),
+                            })
+                        }
+                    }
+
+                    last = Last::Pipe;
+                }
                 _ => {
                     self.input.put_back(token)?;
                     break;
                 }
             }
+        }
+
+        if last == Last::Pipe {
+            pipes.push(Stars(vec![String::new()]));
         }
 
         Ok(pipes)
@@ -309,20 +335,48 @@ impl<'input> Parser<'input> {
 
     fn parse_stars(&mut self) -> Result<Stars> {
         let mut stars = Vec::new();
-        let mut last_was_star = false;
+
+        #[derive(PartialEq)]
+        enum Last {
+            None,
+            Star,
+            Key,
+        }
+
+        let mut last = Last::None;
 
         while let Some(token) = self.input.next()? {
             match token.kind {
                 TokenKind::Star => {
-                    if stars.is_empty() {
-                        stars.push(String::new());
+                    match last {
+                        Last::None => stars.push(String::new()),
+                        Last::Star => {
+                            return Err(ParseError {
+                                pos: token.pos,
+                                cause: ParseErrorCause::UnexpectedToken(token).into(),
+                            })
+                        }
+                        Last::Key => (),
                     }
 
-                    last_was_star = true;
+                    last = Last::Star;
                 }
                 TokenKind::Key(key) => {
-                    stars.push(key);
-                    last_was_star = false;
+                    match last {
+                        Last::None | Last::Star => stars.push(key),
+                        Last::Key => {
+                            return Err(ParseError {
+                                pos: token.pos,
+                                cause: ParseErrorCause::UnexpectedToken(Token {
+                                    pos: token.pos,
+                                    kind: TokenKind::Key(key),
+                                })
+                                .into(),
+                            })
+                        }
+                    }
+
+                    last = Last::Key;
                 }
                 _ => {
                     self.input.put_back(token)?;
@@ -331,7 +385,7 @@ impl<'input> Parser<'input> {
             }
         }
 
-        if last_was_star {
+        if last == Last::Star {
             stars.push(String::new());
         }
 

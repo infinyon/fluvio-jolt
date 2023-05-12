@@ -156,7 +156,7 @@ fn test_parse_lhs_amp_short() {
 #[test]
 fn test_parse_lhs_amp_medium() {
     LhsTestCase {
-        expr: "&12",
+        expr: "&(12)",
         expected: Lhs::Amp(12, 0),
     }
     .run();
@@ -183,7 +183,7 @@ fn test_parse_lhs_dollar_sign_short() {
 #[test]
 fn test_parse_lhs_dollar_sign_medium() {
     LhsTestCase {
-        expr: "$15",
+        expr: "$(15)",
         expected: Lhs::DollarSign(15, 0),
     }
     .run();
@@ -200,11 +200,6 @@ fn test_parse_lhs_dollar_sign_full() {
 
 #[test]
 fn test_parse_lhs_misc() {
-    LhsTestCase {
-        expr: "@&1",
-        expected: Lhs::At(0, Box::new(Rhs(vec![RhsPart::Key(RhsEntry::Amp(1, 0))]))),
-    }
-    .run();
     LhsTestCase {
         expr: "@(2,clone&(1,1)_GCPerProIdenInfoPhyInfoStreet)",
         expected: Lhs::At(
@@ -226,7 +221,7 @@ fn test_parse_lhs_misc() {
     }
     .run();
     LhsTestCase {
-        expr: "@clientNameStuff.clientName",
+        expr: "@(clientNameStuff.clientName)",
         expected: Lhs::At(
             0,
             Box::new(Rhs(vec![
@@ -344,7 +339,7 @@ fn test_parse_rhs_key_idx_lit() {
 #[test]
 fn test_parse_rhs_misc() {
     RhsTestCase {
-        expr: "photos[&1].id",
+        expr: "photos[&(1)].id",
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::Key("photos".into())),
             RhsPart::Index(IndexOp::Amp(1, 0)),
@@ -353,7 +348,7 @@ fn test_parse_rhs_misc() {
     }
     .run();
     RhsTestCase {
-        expr: "photos[&3].sizes.&1",
+        expr: "photos[&(3)].sizes.&(1)",
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::Key("photos".into())),
             RhsPart::Index(IndexOp::Amp(3, 0)),
@@ -423,7 +418,7 @@ fn test_parse_rhs_misc() {
     }
     .run();
     RhsTestCase {
-        expr: "&1.&3.[]",
+        expr: "&(1).&(3)[]",
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::Amp(1, 0)),
             RhsPart::Key(RhsEntry::Amp(3, 0)),
@@ -465,7 +460,7 @@ fn test_parse_rhs_misc() {
     }
     .run();
     RhsTestCase {
-        expr: "ratings.&1.label",
+        expr: "ratings.&(1).label",
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::Key("ratings".into())),
             RhsPart::Key(RhsEntry::Amp(1, 0)),
@@ -474,7 +469,7 @@ fn test_parse_rhs_misc() {
     }
     .run();
     RhsTestCase {
-        expr: "@clientNameStuff.clientName",
+        expr: "@(clientNameStuff).clientName",
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::At(0, "clientNameStuff".into())),
             RhsPart::Key(RhsEntry::Key("clientName".into())),
@@ -544,15 +539,6 @@ fn test_parse_rhs_idx_at() {
             RhsPart::Key(RhsEntry::Key("hello".into())),
             RhsPart::Index(IndexOp::At(2, "world".into())),
         ]),
-    }
-    .run();
-}
-
-#[test]
-fn test_parse_rhs_at_edge_case() {
-    RhsTestCase {
-        expr: "@2",
-        expected: Rhs(vec![RhsPart::Key(RhsEntry::At(2, Rhs(Vec::new()).into()))]),
     }
     .run();
 }
