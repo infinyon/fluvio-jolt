@@ -332,7 +332,10 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
 // index into an object using a given key
 // errors if key is not found
 fn key_into_object<'input>(v: &'input Value, key: &str) -> Result<&'input Value> {
-    let obj = v.as_object().ok_or(Error::UnexpectedRhsEntry)?;
+    let obj = v.as_object().ok_or_else(|| {
+        dbg!(&v);
+        Error::UnexpectedRhsEntry
+    })?;
 
     match obj.get(key) {
         Some(v) => Ok(v),
@@ -393,6 +396,7 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
             RhsPart::CompositeKey(entries) => {
                 let mut key = String::new();
 
+                dbg!(entries);
                 for entry in entries {
                     let cow = rhs_entry_to_cow(entry, path)?;
                     key += cow.as_ref();
@@ -409,7 +413,6 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
             }
             RhsPart::Key(entry) => {
                 let cow = rhs_entry_to_cow(entry, path)?;
-
                 let obj = if out.is_object() {
                     out.as_object_mut().unwrap()
                 } else {

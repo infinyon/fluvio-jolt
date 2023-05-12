@@ -22,6 +22,15 @@ impl<'a> LhsTestCase<'a> {
 }
 
 #[test]
+fn test_parse_lhs_at_empty() {
+    LhsTestCase {
+        expr: "@",
+        expected: Lhs::At(0, Rhs(vec![]).into()),
+    }
+    .run();
+}
+
+#[test]
 fn test_parse_lhs_square() {
     LhsTestCase {
         expr: "#my123 _12\n3key",
@@ -473,6 +482,22 @@ fn test_parse_rhs_misc() {
         expected: Rhs(vec![
             RhsPart::Key(RhsEntry::At(0, "clientNameStuff".into())),
             RhsPart::Key(RhsEntry::Key("clientName".into())),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "[&(1)].guid",
+        expected: Rhs(vec![
+            RhsPart::Index(IndexOp::Amp(1, 0)),
+            RhsPart::Key(RhsEntry::Key("guid".into())),
+        ]),
+    }
+    .run();
+    RhsTestCase {
+        expr: "__data.&",
+        expected: Rhs(vec![
+            RhsPart::Key(RhsEntry::Key("__data".into())),
+            RhsPart::Key(RhsEntry::Amp(0, 0)),
         ]),
     }
     .run();

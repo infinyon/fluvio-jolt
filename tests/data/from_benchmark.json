@@ -38,8 +38,8 @@
     {
       "operation": "shift",
       "spec": {
-        "name|gender|age": "personal_details.&0",
-        "company|email|phone": "contacts.&0",
+        "name|gender|age": "personal_details.&",
+        "company|email|phone": "contacts.&",
         "balance": "balance"
       }
     },

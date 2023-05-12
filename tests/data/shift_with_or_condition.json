@@ -17,7 +17,7 @@
       "operation": "shift",
       "spec": {
         "accounts": {
-          "account|secondary_account": "new.&1.&0"
+          "account|secondary_account": "new.&(1).&"
         }
       }
     }

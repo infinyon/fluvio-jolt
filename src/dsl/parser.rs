@@ -88,7 +88,9 @@ impl<'input> Parser<'input> {
             }
             _ => {
                 self.input.put_back(token)?;
-                parts.push(self.parse_rhs_part(depth)?);
+                if let Some(part) = self.parse_rhs_part(depth)? {
+                    parts.push(part);
+                }
             }
         }
 
@@ -100,7 +102,11 @@ impl<'input> Parser<'input> {
                     parts.push(RhsPart::Index(idx_op));
                 }
                 TokenKind::Dot => {
-                    parts.push(self.parse_rhs_part(depth)?);
+                    if let Some(part) = self.parse_rhs_part(depth)? {
+                        parts.push(part);
+                    } else {
+                        break;
+                    }
                 }
                 _ => {
                     self.input.put_back(token)?;
@@ -112,7 +118,7 @@ impl<'input> Parser<'input> {
         Ok(Rhs(parts))
     }
 
-    fn parse_rhs_part(&mut self, depth: usize) -> Result<RhsPart> {
+    fn parse_rhs_part(&mut self, depth: usize) -> Result<Option<RhsPart>> {
         let mut entries: Vec<RhsEntry> = Vec::new();
 
         while let Some(token) = self.input.next()? {
@@ -130,12 +136,12 @@ impl<'input> Parser<'input> {
         }
 
         let part = match entries.len() {
-            0 => RhsPart::Key(RhsEntry::Key(String::new())),
+            0 => return Ok(None),
             1 => RhsPart::Key(entries.remove(0)),
             _ => RhsPart::CompositeKey(entries),
         };
 
-        Ok(part)
+        Ok(Some(part))
     }
 
     fn parse_index_op(&mut self, depth: usize) -> Result<IndexOp> {
