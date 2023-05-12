@@ -127,7 +127,7 @@ fn match_obj_and_key<'ctx, 'input: 'ctx>(
 }
 
 fn lhs_is_fallible(lhs: &Lhs) -> bool {
-    !matches!(lhs, Lhs::DollarSign(_, _) | Lhs::Square(_) | Lhs::At(_))
+    !matches!(lhs, Lhs::DollarSign(_, _) | Lhs::Square(_) | Lhs::At(_, _))
 }
 
 #[derive(PartialEq)]
@@ -231,12 +231,7 @@ fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
 }
 
 // Evaluate an @ expression into a json value using the given path
-fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
-    let at = match at {
-        Some(at) => at,
-        None => return Ok(Value::clone(path.last().unwrap().1)),
-    };
-
+fn eval_at(at: (usize, &Rhs), path: &[(Vec<Cow<'_, str>>, &Value)]) -> Result<Value> {
     if at.0 >= path.len() {
         return Err(Error::PathIndexOutOfRange {
             idx: at.0,
@@ -246,7 +241,7 @@ fn eval_at(at: &Option<(usize, Box<Rhs>)>, path: &[(Vec<Cow<'_, str>>, &Value)])
 
     let v = &path[path.len() - at.0 - 1];
 
-    eval_rhs(&at.1, v.1, path)
+    eval_rhs(at.1, v.1, path)
 }
 
 // Evaluate a rhs expression into a json value using the given path
@@ -255,43 +250,37 @@ fn eval_rhs(rhs: &Rhs, v: &Value, path: &[(Vec<Cow<'_, str>>, &Value)]) -> Resul
 
     for part in rhs.0.iter() {
         match part {
-            RhsPart::Index(idx_op) => {
-                match v {
-                    Value::Array(a) => {
-                        let idx = match idx_op {
-                            IndexOp::Square(_) => {
-                                // TODO: implement this. It requires recording number of matches in each level
-                                return Err(Error::Todo);
-                            }
-                            IndexOp::Amp(idx0, idx1) => {
-                                let m = get_match((*idx0, *idx1), path)?;
-                                m.parse().map_err(Error::InvalidIndex)?
-                            }
-                            IndexOp::Literal(idx) => *idx,
-                            IndexOp::At(at) => match eval_at(at, path)? {
-                                Value::Number(n) => n
-                                    .clone()
-                                    .as_u64()
-                                    .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
-                                    .try_into()
-                                    .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
-                                Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
-                                v => return Err(Error::InvalidIndexVal(v)),
-                            },
-                            IndexOp::Empty => {
-                                return Err(Error::UnexpectedRhsEntry);
-                            }
-                        };
+            RhsPart::Index(idx_op) => match v {
+                Value::Array(a) => {
+                    let idx = match idx_op {
+                        IndexOp::Amp(idx0, idx1) => {
+                            let m = get_match((*idx0, *idx1), path)?;
+                            m.parse().map_err(Error::InvalidIndex)?
+                        }
+                        IndexOp::Literal(idx) => *idx,
+                        IndexOp::At(idx, rhs) => match eval_at((*idx, rhs), path)? {
+                            Value::Number(n) => n
+                                .clone()
+                                .as_u64()
+                                .ok_or(Error::InvalidIndexVal(Value::Number(n.clone())))?
+                                .try_into()
+                                .map_err(|_| Error::InvalidIndexVal(Value::Number(n)))?,
+                            Value::String(s) => s.parse().map_err(Error::InvalidIndex)?,
+                            v => return Err(Error::InvalidIndexVal(v)),
+                        },
+                        IndexOp::Empty => {
+                            return Err(Error::UnexpectedRhsEntry);
+                        }
+                    };
 
-                        v = a
-                            .get(idx)
-                            .ok_or(Error::ArrIndexOutOfRange { idx, len: a.len() })?;
-                    }
-                    _ => {
-                        return Err(Error::UnexpectedRhsEntry);
-                    }
+                    v = a
+                        .get(idx)
+                        .ok_or(Error::ArrIndexOutOfRange { idx, len: a.len() })?;
                 }
-            }
+                _ => {
+                    return Err(Error::UnexpectedRhsEntry);
+                }
+            },
             RhsPart::CompositeKey(entries) => {
                 let mut key = String::new();
 
@@ -319,8 +308,8 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
 ) -> Result<Cow<'input, str>> {
     let cow = match entry {
         RhsEntry::Amp(idx0, idx1) => get_match((*idx0, *idx1), path)?,
-        RhsEntry::At(at) => {
-            let key = eval_at(at, path)?;
+        RhsEntry::At(idx, rhs) => {
+            let key = eval_at((*idx, rhs), path)?;
             match key {
                 Value::String(s) => Cow::Owned(s),
                 Value::Number(n) => Cow::Owned(n.to_string()),
@@ -373,16 +362,12 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
                 };
 
                 let idx = match idx_op {
-                    IndexOp::Square(_) => {
-                        // TODO: implement this. It requires recording number of matches in each level
-                        return Err(Error::Todo);
-                    }
                     IndexOp::Amp(idx0, idx1) => {
                         let m = get_match((*idx0, *idx1), path)?;
                         m.parse().map_err(Error::InvalidIndex)?
                     }
                     IndexOp::Literal(idx) => *idx,
-                    IndexOp::At(at) => match eval_at(at, path)? {
+                    IndexOp::At(idx, rhs) => match eval_at((*idx, rhs), path)? {
                         Value::Number(n) => n
                             .clone()
                             .as_u64()
@@ -424,7 +409,6 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
             }
             RhsPart::Key(entry) => {
                 let cow = rhs_entry_to_cow(entry, path)?;
-
                 let obj = if out.is_object() {
                     out.as_object_mut().unwrap()
                 } else {
@@ -484,8 +468,8 @@ fn match_lhs<'ctx, 'input: 'ctx>(
                 Ok((None, Vec::new()))
             }
         }
-        Lhs::At(at) => {
-            let val = eval_at(at, path)?;
+        Lhs::At(idx, rhs) => {
+            let val = eval_at((*idx, rhs), path)?;
 
             Ok((
                 Some(MatchResult::OutputVal(val)),

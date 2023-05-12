@@ -22,6 +22,10 @@ pub enum ParseErrorCause {
     InvalidIndex(ParseIntError),
     #[error("Maximum recursion depth ({0}) reached.")]
     MaximumRecursion(usize),
+    #[error("put_back buffer is already full. THIS SHOULD NEVER HAPPEN.")]
+    PutBackBufferFull,
+    #[error("expected an index value but failed to find it.")]
+    ExpectedIdx,
 }
 
 impl fmt::Display for ParseError {

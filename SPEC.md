@@ -13,8 +13,8 @@ Lhs: AtExpr |
         AmpExpr |
         Pipes;
 
-Rhs: ('[' IndexOp? ']' | RhsEntry+) RhsPart+;
-RhsPart: '[' IndexOp? ']' | '.' RhsEntry+;
+Rhs: ('[' IndexOp? ']' | RhsEntry*) RhsPart*;
+RhsPart: '[' IndexOp? ']' | '.' RhsEntry*;
 RhsEntry: AmpExpr |
             AtExpr |
             Key;
