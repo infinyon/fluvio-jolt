@@ -9,6 +9,7 @@ pub enum Lhs {
     Square(String),
     /// Bunch of star expression separated by pipes
     Pipes(Vec<Stars>),
+    Literal(String),
 }
 
 impl Lhs {

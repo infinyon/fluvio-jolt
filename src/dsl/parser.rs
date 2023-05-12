@@ -31,8 +31,8 @@ impl<'input> Parser<'input> {
             TokenKind::DollarSign => self.parse_num_tuple().map(|t| Lhs::DollarSign(t.0, t.1)),
             TokenKind::Amp => self.parse_num_tuple().map(|t| Lhs::Amp(t.0, t.1)),
             TokenKind::Key(_) | TokenKind::Star => {
-                self.input.put_back(token);
-                self.parse_pipes().map(Lhs::Pipes)
+                self.input.put_back(token)?;
+                self.parse_pipes_or_lit()
             }
             _ => {
                 return Err(ParseError {
@@ -87,7 +87,7 @@ impl<'input> Parser<'input> {
                 parts.push(RhsPart::Index(idx_op));
             }
             _ => {
-                self.input.put_back(token);
+                self.input.put_back(token)?;
                 parts.push(self.parse_rhs_part(depth)?);
             }
         }
@@ -228,8 +228,8 @@ impl<'input> Parser<'input> {
             return Ok((0, 0));
         }
 
-        let get_idx = || {
-            let token = self.get_next()?;
+        let get_idx = |p: &mut Self| {
+            let token = p.get_next()?;
             match token.kind {
                 TokenKind::Key(key) => Self::parse_index(&key, token.pos),
                 _ => Err(ParseError {
@@ -239,7 +239,7 @@ impl<'input> Parser<'input> {
             }
         };
 
-        let idx0 = get_idx()?;
+        let idx0 = get_idx(self)?;
 
         let token = self.get_next()?;
         match token.kind {
@@ -255,11 +255,24 @@ impl<'input> Parser<'input> {
             }
         }
 
-        let idx1 = get_idx()?;
+        let idx1 = get_idx(self)?;
 
-        self.assert_next(TokenKind::ClosePrnth);
+        self.assert_next(TokenKind::ClosePrnth)?;
 
         Ok((idx0, idx1))
+    }
+
+    fn parse_pipes_or_lit(&mut self) -> Result<Lhs> {
+        let pipes = self.parse_pipes()?;
+
+        if pipes.len() == 1 && pipes[0].0.len() == 1 {
+            // this will never panic because we check the lengths
+            // beforehand
+            let mut pipes = pipes;
+            Ok(Lhs::Literal(pipes.pop().unwrap().0.pop().unwrap()))
+        } else {
+            Ok(Lhs::Pipes(pipes))
+        }
     }
 
     fn parse_pipes(&mut self) -> Result<Vec<Stars>> {
