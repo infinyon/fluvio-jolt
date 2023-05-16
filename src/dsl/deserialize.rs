@@ -40,6 +40,13 @@ impl<'de> Visitor<'de> for RhsVisitor {
         formatter.write_str("right hand side expression")
     }
 
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(&v)
+    }
+
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -53,7 +60,55 @@ impl<'de> Deserialize<'de> for Rhs {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(RhsVisitor)
+        deserializer.deserialize_any(RhsVisitor)
+    }
+}
+
+struct RhssVisitor;
+
+impl<'de> Visitor<'de> for RhssVisitor {
+    type Value = Vec<Rhs>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("Right hand side expression or a array of rhs expressions")
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(&v)
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let r = Rhs::parse(value)
+            .map_err(|e| E::custom(format!("failed to parse: {value}.error={e}")))?;
+        Ok(vec![r])
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut arr = Vec::new();
+        while let Some(rhs) = seq.next_element::<Rhss>()? {
+            arr.extend_from_slice(&rhs.0);
+        }
+        Ok(arr)
+    }
+}
+
+struct Rhss(Vec<Rhs>);
+
+impl<'de> Deserialize<'de> for Rhss {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(RhssVisitor).map(Rhss)
     }
 }
 
@@ -84,19 +139,21 @@ impl<'de> Visitor<'de> for ObjectVisitor {
 
             match lhs {
                 Lhs::DollarSign(idx0, idx1) => {
-                    obj.infallible
-                        .push((InfallibleLhs::DollarSign(idx0, idx1), map.next_value()?));
+                    obj.infallible.push((
+                        InfallibleLhs::DollarSign(idx0, idx1),
+                        map.next_value::<Rhss>()?.0,
+                    ));
                 }
                 Lhs::Amp(idx0, idx1) => {
                     obj.amp.push(((idx0, idx1), map.next_value()?));
                 }
                 Lhs::At(idx, rhs) => {
                     obj.infallible
-                        .push((InfallibleLhs::At(idx, rhs), map.next_value()?));
+                        .push((InfallibleLhs::At(idx, rhs), map.next_value::<Rhss>()?.0));
                 }
                 Lhs::Square(lit) => {
                     obj.infallible
-                        .push((InfallibleLhs::Square(lit), map.next_value()?));
+                        .push((InfallibleLhs::Square(lit), map.next_value::<Rhss>()?.0));
                 }
                 Lhs::Pipes(pipes) => {
                     obj.pipes.push((pipes, map.next_value()?));
@@ -183,7 +240,7 @@ impl<'de> Visitor<'de> for REntryVisitor {
         let mut arr = Vec::new();
 
         while let Some(rhs) = seq.next_element()? {
-            arr.push(RhsVisitor.visit_str(rhs)?);
+            arr.push(rhs);
         }
 
         Ok(REntry::Rhs(arr))
@@ -203,6 +260,13 @@ impl<'de> Visitor<'de> for REntryVisitor {
         E: de::Error,
     {
         Ok(REntry::Thrash)
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_none()
     }
 }
 

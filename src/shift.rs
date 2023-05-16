@@ -19,10 +19,12 @@ impl Transform for Shift {
         let mut out = Value::Null;
         apply(&self.0, &mut path, &mut out)?;
 
-        path.pop().unwrap();
+        path.pop().ok_or(Error::ShiftEmptyPath)?;
         // path should always be empty at this point
         // if not, the implementation is broken
-        assert!(path.is_empty());
+        if !path.is_empty() {
+            return Err(Error::ShiftPathNotEmpty);
+        }
 
         Ok(out)
     }
@@ -49,7 +51,9 @@ fn apply<'ctx, 'input: 'ctx>(
         };
 
         path.push(tip.clone());
-        insert_val_to_rhs(rhs, v, path, out)?;
+        for rhs in rhs.iter() {
+            insert_val_to_rhs(rhs, v.clone(), path, out)?;
+        }
         path.pop().ok_or(Error::ShiftEmptyPath)?;
     }
 
@@ -147,10 +151,9 @@ fn apply_match<'ctx, 'input: 'ctx>(
 ) -> Result<()> {
     match rhs {
         REntry::Obj(object) => apply(object, path, out),
-        REntry::Rhs(rhs) => insert_val_to_rhs(rhs, v.clone(), path, out),
-        REntry::Arr(arr) => {
-            for rhs in arr {
-                apply_match(v, rhs, path, out)?;
+        REntry::Rhs(rhs) => {
+            for rhs in rhs.iter() {
+                insert_val_to_rhs(rhs, v.clone(), path, out)?;
             }
             Ok(())
         }
@@ -448,18 +451,4 @@ fn get_match<'ctx, 'input: 'ctx>(
     })?;
 
     Ok(m.clone())
-}
-
-fn get_matches<'ctx, 'input: 'ctx>(
-    idx: usize,
-    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
-) -> Result<&'ctx [Cow<'input, str>]> {
-    if idx >= path.len() {
-        return Err(Error::PathIndexOutOfRange {
-            idx,
-            len: path.len(),
-        });
-    }
-
-    Ok(&path[path.len() - idx - 1].0)
 }
