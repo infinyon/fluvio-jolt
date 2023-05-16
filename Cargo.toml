@@ -18,8 +18,6 @@ crate-type = ['cdylib', 'rlib']
 serde = { version = "1", features = ["derive"] }
 serde_json = {version = "1", features = ["preserve_order"]}
 thiserror = "1"
-indexmap = { version = "1", features = ["serde"] }
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [dev-dependencies]
 criterion = "0.3"
