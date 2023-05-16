@@ -18,16 +18,17 @@ pub enum InfallibleLhs {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Object {
-    infallible: Vec<(InfallibleLhs, Rhs)>,
-    literal: Vec<(String, REntry)>,
-    amp: Vec<((usize, usize), REntry)>,
-    pipes: Vec<(Vec<Stars>, REntry)>,
+    pub infallible: Vec<(InfallibleLhs, Vec<Rhs>)>,
+    pub literal: Vec<(String, REntry)>,
+    pub amp: Vec<((usize, usize), REntry)>,
+    pub pipes: Vec<(Vec<Stars>, REntry)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum REntry {
     Obj(Box<Object>),
-    Rhs(Rhs),
+    Rhs(Vec<Rhs>),
+    Thrash,
 }
 
 struct RhsVisitor;
@@ -74,12 +75,12 @@ impl<'de> Visitor<'de> for ObjectVisitor {
 
         let mut key_set = HashSet::new();
 
-        while let Some(lhs) = map.next_key()? {
-            if !key_set.insert(lhs) {
+        while let Some(lhs_s) = map.next_key::<String>()? {
+            let lhs = LhsVisitor.visit_str(&lhs_s)?;
+
+            if !key_set.insert(lhs_s) {
                 return Err(A::Error::custom("duplicate lhs"));
             }
-
-            let lhs = LhsVisitor.visit_str(lhs)?;
 
             match lhs {
                 Lhs::DollarSign(idx0, idx1) => {
@@ -115,7 +116,7 @@ impl<'de> Deserialize<'de> for Object {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(ObjectVisitor)
+        deserializer.deserialize_map(ObjectVisitor)
     }
 }
 
@@ -125,7 +126,14 @@ impl<'de> Visitor<'de> for LhsVisitor {
     type Value = Lhs;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("Lhs expression")
+        formatter.write_str("Left hand side expression")
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(&v)
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -141,7 +149,7 @@ impl<'de> Deserialize<'de> for Lhs {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(LhsVisitor)
+        deserializer.deserialize_any(LhsVisitor)
     }
 }
 
@@ -151,14 +159,50 @@ impl<'de> Visitor<'de> for REntryVisitor {
     type Value = REntry;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("Right hand side entry")
+        formatter.write_str("Right hand side object or expression")
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(&v)
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        RhsVisitor.visit_str(value).map(REntry::Rhs)
+        RhsVisitor.visit_str(value).map(|r| REntry::Rhs(vec![r]))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut arr = Vec::new();
+
+        while let Some(rhs) = seq.next_element()? {
+            arr.push(RhsVisitor.visit_str(rhs)?);
+        }
+
+        Ok(REntry::Rhs(arr))
+    }
+
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::MapAccess<'de>,
+    {
+        ObjectVisitor
+            .visit_map(map)
+            .map(|obj| REntry::Obj(Box::new(obj)))
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(REntry::Thrash)
     }
 }
 
@@ -167,6 +211,6 @@ impl<'de> Deserialize<'de> for REntry {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(REntryVisitor)
+        deserializer.deserialize_any(REntryVisitor)
     }
 }

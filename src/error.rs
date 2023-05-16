@@ -25,6 +25,8 @@ pub enum Error {
     KeyNotFound(String),
     #[error("Expression didn't evaluate to a string.")]
     EvalString,
+    #[error("Empty path while executing shift.")]
+    ShiftEmptyPath,
 }
 
 pub type Result<T> = StdResult<T, Error>;

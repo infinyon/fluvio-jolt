@@ -1,29 +1,16 @@
 use std::borrow::Cow;
 
-use indexmap::IndexMap;
 use serde_json::Value;
-use xxhash_rust::xxh3::Xxh3Builder;
 use serde::Deserialize;
 
-use crate::dsl::{LhsWithHash, Lhs, Rhs, RhsEntry, IndexOp, RhsPart};
+use crate::dsl::{Object, REntry, InfallibleLhs, Rhs, RhsEntry, IndexOp, RhsPart};
 use crate::transform::Transform;
 use crate::{Error, Result};
 
 const ROOT_KEY: &str = "root";
 
-type Obj = IndexMap<LhsWithHash, Val, Xxh3Builder>;
-
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-#[serde(untagged)]
-enum Val {
-    Obj(Box<Obj>),
-    Rhs(Rhs),
-    Arr(Vec<Rhs>),
-    Null,
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct Shift(Obj);
+pub struct Shift(Object);
 
 impl Transform for Shift {
     fn apply(&self, val: &Value) -> Result<Value> {
@@ -45,22 +32,28 @@ impl Transform for Shift {
 // input is passed using the path and the current input should be
 // at the tip of the path
 fn apply<'ctx, 'input: 'ctx>(
-    obj: &'input Obj,
+    obj: &'input Object,
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     out: &'ctx mut Value,
 ) -> Result<()> {
-    // run the infallible lhs exprs first
-    match_obj_and_key_impl(
-        obj,
-        path,
-        path.last().unwrap().0[0].clone(),
-        path.last().unwrap().1,
-        out,
-        LhsSelection::Infallible,
-    )?;
-    let input = path.last().unwrap();
+    let tip = path.last().ok_or(Error::ShiftEmptyPath)?.clone();
 
-    match input.1 {
+    for (lhs, rhs) in obj.infallible.iter() {
+        let v = match lhs {
+            InfallibleLhs::DollarSign(idx0, idx1) => {
+                let s = get_match((*idx0, *idx1), path)?;
+                Value::String(s.into())
+            }
+            InfallibleLhs::At(idx, rhs) => eval_at((*idx, rhs), path)?,
+            InfallibleLhs::Square(lit) => Value::String(lit.clone()),
+        };
+
+        path.push(tip.clone());
+        insert_val_to_rhs(rhs, v, path, out)?;
+        path.pop().ok_or(Error::ShiftEmptyPath)?;
+    }
+
+    match tip.1 {
         Value::Object(input) => {
             for (k, v) in input.iter() {
                 match_obj_and_key(obj, path, Cow::Borrowed(k), v, out)?;
@@ -69,7 +62,7 @@ fn apply<'ctx, 'input: 'ctx>(
         Value::Bool(b) => {
             let k = if *b { "true" } else { "false" };
 
-            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), tip.1, out)?;
         }
         Value::Array(arr) => {
             for (k, v) in arr.iter().enumerate() {
@@ -88,14 +81,14 @@ fn apply<'ctx, 'input: 'ctx>(
         Value::Number(n) => {
             let k = n.to_string();
 
-            match_obj_and_key(obj, path, Cow::Owned(k), input.1, out)?;
+            match_obj_and_key(obj, path, Cow::Owned(k), tip.1, out)?;
         }
         Value::String(k) => {
-            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), tip.1, out)?;
         }
         Value::Null => {
             let k = "null";
-            match_obj_and_key(obj, path, Cow::Borrowed(k), input.1, out)?;
+            match_obj_and_key(obj, path, Cow::Borrowed(k), tip.1, out)?;
         }
     };
 
@@ -104,130 +97,65 @@ fn apply<'ctx, 'input: 'ctx>(
 
 // Match and object in the spec with a key/value pair from the input
 // This function only runs the k/v pairs that have a fallible lhs in the spec
-// The infallible ones should be run sparately
+// The infallible ones should have ran beforehand
 fn match_obj_and_key<'ctx, 'input: 'ctx>(
-    obj: &'input Obj,
+    obj: &'input Object,
     path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     k: Cow<'input, str>,
     v: &'input Value,
     out: &'ctx mut Value,
 ) -> Result<()> {
-    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Literal)? {
-        // Return early if we already matched a k/v pair
-        return Ok(());
+    for (lit, rhs) in obj.literal.iter() {
+        let lit = Cow::Borrowed(lit.as_ref());
+        if lit == k {
+            path.push((vec![lit], v));
+            apply_match(v, rhs, path, out)?;
+            path.pop().ok_or(Error::ShiftEmptyPath)?;
+            return Ok(());
+        }
     }
-    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Amp)? {
-        return Ok(());
+
+    for (amp, rhs) in obj.amp.iter() {
+        let m = get_match(*amp, path)?;
+        if m == k {
+            path.push((vec![m], v));
+            apply_match(v, rhs, path, out)?;
+            path.pop().ok_or(Error::ShiftEmptyPath)?;
+            return Ok(());
+        }
     }
-    if match_obj_and_key_impl(obj, path, k.clone(), v, out, LhsSelection::Pipes)? {
-        return Ok(());
+
+    for (pipes, rhs) in obj.pipes.iter() {
+        for stars in pipes.iter() {
+            if let Some(m) = match_stars(&stars.0, Cow::clone(&k)) {
+                path.push((m, v));
+                apply_match(v, rhs, path, out)?;
+                path.pop().ok_or(Error::ShiftEmptyPath)?;
+                return Ok(());
+            }
+        }
     }
 
     Ok(())
 }
 
-fn lhs_is_fallible(lhs: &Lhs) -> bool {
-    !matches!(lhs, Lhs::DollarSign(_, _) | Lhs::Square(_) | Lhs::At(_, _))
-}
-
-#[derive(PartialEq)]
-enum LhsSelection {
-    // Infallible lhs exprs include
-    // @, # and $
-    Infallible,
-    // Literal lhs like `my_key`
-    Literal,
-    // Amp lhs `&`
-    Amp,
-    // Lhs including Pipes and stars like `hello*|*world`
-    Pipes,
-}
-
-// match an object in the spec with a k/v pair in the input
-// has a filter to dictate which kind of lhs expr are ran
-// this allows to run the lhs exprs in a specific order
-// We should ideally do this before the execution time but it is
-// implemented like this to make it simpler for now
-fn match_obj_and_key_impl<'ctx, 'input: 'ctx>(
-    obj: &'input Obj,
-    path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
-    k: Cow<'input, str>,
+fn apply_match<'ctx, 'input: 'ctx>(
     v: &'input Value,
+    rhs: &'input REntry,
+    path: &'ctx mut Vec<(Vec<Cow<'input, str>>, &'input Value)>,
     out: &'ctx mut Value,
-    // Used to filter the lhs expressions that are used for matching
-    // It is necessary because there is a sepcific order of Lhs expression
-    // types to process according to the original implementation of jolt
-    selection: LhsSelection,
-) -> Result<bool> {
-    let mut matched = false;
-
-    for (lhs, rhs) in obj.iter() {
-        match selection {
-            LhsSelection::Infallible => {
-                if lhs_is_fallible(&lhs.lhs) {
-                    continue;
-                }
+) -> Result<()> {
+    match rhs {
+        REntry::Obj(object) => apply(object, path, out),
+        REntry::Rhs(rhs) => insert_val_to_rhs(rhs, v.clone(), path, out),
+        REntry::Arr(arr) => {
+            for rhs in arr {
+                apply_match(v, rhs, path, out)?;
             }
-            LhsSelection::Literal => {
-                if !matches!(lhs.lhs, Lhs::Literal(_)) {
-                    continue;
-                }
-            }
-            LhsSelection::Amp => {
-                if !matches!(lhs.lhs, Lhs::Amp(_, _)) {
-                    continue;
-                }
-            }
-            LhsSelection::Pipes => {
-                if !matches!(lhs.lhs, Lhs::Pipes(_)) {
-                    continue;
-                }
-            }
+            Ok(())
         }
-        let (res, m) = match_lhs(&lhs.lhs, k.clone(), path)?;
-        if let Some(res) = res {
-            matched = true;
-
-            path.push((m, v));
-
-            match rhs {
-                Val::Obj(inner) => {
-                    if selection == LhsSelection::Infallible {
-                        return Err(Error::UnexpectedObjectInRhs);
-                    }
-
-                    apply(inner, path, out)?;
-                }
-                Val::Rhs(rhs) => {
-                    let v = match res {
-                        MatchResult::OutputInputValue => v.clone(),
-                        MatchResult::OutputVal(v) => v,
-                    };
-
-                    insert_val_to_rhs(rhs, v, path, out)?;
-                }
-                Val::Arr(rhs_arr) => {
-                    let v = match res {
-                        MatchResult::OutputInputValue => v.clone(),
-                        MatchResult::OutputVal(v) => v,
-                    };
-
-                    for rhs in rhs_arr.iter() {
-                        insert_val_to_rhs(rhs, v.clone(), path, out)?;
-                    }
-                }
-                Val::Null => (),
-            }
-
-            path.pop().unwrap();
-
-            if selection != LhsSelection::Infallible {
-                break;
-            }
-        }
+        REntry::Thrash => Ok(()),
     }
-
-    Ok(matched)
 }
 
 // Evaluate an @ expression into a json value using the given path
@@ -435,67 +363,6 @@ fn insert_val_to_rhs<'ctx, 'input: 'ctx>(
     }
 
     Ok(())
-}
-
-#[derive(PartialEq)]
-enum MatchResult {
-    // output value of input to the path specified by rhs if rhs is an expression
-    // if rhs is an object keep going down the tree
-    OutputInputValue,
-    // output this value to the path specified by the right hand side
-    // the right hand side must be an expression
-    OutputVal(Value),
-}
-
-fn match_lhs<'ctx, 'input: 'ctx>(
-    lhs: &'input Lhs,
-    k: Cow<'input, str>,
-    path: &'ctx [(Vec<Cow<'input, str>>, &'input Value)],
-) -> Result<(Option<MatchResult>, Vec<Cow<'input, str>>)> {
-    match lhs {
-        Lhs::DollarSign(path_idx, match_idx) => {
-            let m = get_match((*path_idx, *match_idx), path)?;
-            Ok((
-                Some(MatchResult::OutputVal(Value::String(m.into()))),
-                get_matches(0, path)?.to_vec(),
-            ))
-        }
-        Lhs::Amp(path_idx, match_idx) => {
-            let m = get_match((*path_idx, *match_idx), path)?;
-            if m == k {
-                Ok((Some(MatchResult::OutputInputValue), vec![k]))
-            } else {
-                Ok((None, Vec::new()))
-            }
-        }
-        Lhs::At(idx, rhs) => {
-            let val = eval_at((*idx, rhs), path)?;
-
-            Ok((
-                Some(MatchResult::OutputVal(val)),
-                get_matches(0, path)?.to_vec(),
-            ))
-        }
-        Lhs::Square(lit) => Ok((
-            Some(MatchResult::OutputVal(Value::String(lit.to_owned()))),
-            get_matches(0, path)?.to_vec(),
-        )),
-        Lhs::Pipes(pipes) => {
-            for stars in pipes.iter() {
-                if let Some(m) = match_stars(&stars.0, k.clone()) {
-                    return Ok((Some(MatchResult::OutputInputValue), m));
-                }
-            }
-            Ok((None, Vec::new()))
-        }
-        Lhs::Literal(lit) => {
-            if lit == k.as_ref() {
-                Ok((Some(MatchResult::OutputInputValue), vec![k]))
-            } else {
-                Ok((None, Vec::new()))
-            }
-        }
-    }
 }
 
 fn match_stars<'ctx, 'input: 'ctx>(
