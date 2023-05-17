@@ -7,7 +7,7 @@ pub enum Lhs {
     Amp(usize, usize),
     At(usize, Box<Rhs>),
     Square(String),
-    /// Bunch of star expression separated by pipes
+    /// Bunch of star expressions separated by pipes
     Pipes(Vec<Stars>),
     Literal(String),
 }

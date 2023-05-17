@@ -10,4 +10,4 @@ mod chars;
 
 pub use error::ParseError;
 pub use ast::{Rhs, Lhs, RhsEntry, IndexOp, RhsPart};
-pub use deserialize::LhsWithHash;
+pub use deserialize::{InfallibleLhs, Object, REntry};
