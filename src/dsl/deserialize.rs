@@ -22,6 +22,7 @@ pub struct Object {
     pub literal: Vec<(String, REntry)>,
     pub amp: Vec<((usize, usize), REntry)>,
     pub pipes: Vec<(Vec<Stars>, REntry)>,
+    pub fn_calls: Vec<((String, Vec<Rhs>), REntry)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,6 +161,9 @@ impl<'de> Visitor<'de> for ObjectVisitor {
                 }
                 Lhs::Literal(lit) => {
                     obj.literal.push((lit, map.next_value()?));
+                }
+                Lhs::FnCall(name, args) => {
+                    obj.fn_calls.push(((name, args), map.next_value()?));
                 }
             }
         }
