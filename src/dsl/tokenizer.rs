@@ -129,6 +129,10 @@ impl<'input> Tokenizer<'input> {
                 pos,
                 kind: TokenKind::Comma,
             },
+            '=' => Token {
+                pos,
+                kind: TokenKind::Eq,
+            },
             _ => {
                 self.chars.put_back(c)?;
                 self.key()?
@@ -139,6 +143,6 @@ impl<'input> Tokenizer<'input> {
     }
 }
 
-const SPECIAL_CHARS: [char; 13] = [
-    '$', '&', '@', '#', '*', '|', '[', ']', '(', ')', '.', ',', '\\',
+const SPECIAL_CHARS: [char; 14] = [
+    '$', '&', '@', '#', '*', '|', '[', ']', '(', ')', '.', ',', '\\', '=',
 ];

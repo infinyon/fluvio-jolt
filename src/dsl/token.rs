@@ -19,4 +19,5 @@ pub enum TokenKind {
     Dot,
     Comma,
     Key(String),
+    Eq,
 }

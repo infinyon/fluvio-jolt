@@ -34,6 +34,7 @@ impl<'input> Parser<'input> {
                 self.input.put_back(token)?;
                 self.parse_pipes_or_lit()
             }
+            TokenKind::Eq => self.parse_fn_call(0).map(|t| Lhs::FnCall(t.0, t.1)),
             _ => {
                 return Err(ParseError {
                     pos: token.pos,
@@ -126,6 +127,9 @@ impl<'input> Parser<'input> {
                 TokenKind::Amp => self.parse_num_tuple().map(|t| RhsEntry::Amp(t.0, t.1))?,
                 TokenKind::At => self.parse_at_tuple(depth).map(|t| RhsEntry::At(t.0, t.1))?,
                 TokenKind::Key(key) => RhsEntry::Key(key),
+                TokenKind::Eq => self
+                    .parse_fn_call(depth + 1)
+                    .map(|t| RhsEntry::FnCall(t.0, t.1))?,
                 _ => {
                     self.input.put_back(token)?;
                     break;
@@ -142,6 +146,53 @@ impl<'input> Parser<'input> {
         };
 
         Ok(Some(part))
+    }
+
+    fn parse_fn_call(&mut self, depth: usize) -> Result<(String, Vec<Rhs>)> {
+        let token = self.get_next()?;
+        let name = match token.kind {
+            TokenKind::Key(name) => name,
+            _ => {
+                return Err(ParseError {
+                    pos: token.pos,
+                    cause: ParseErrorCause::UnexpectedToken(token).into(),
+                })
+            }
+        };
+
+        let mut args = Vec::new();
+
+        self.assert_next(TokenKind::OpenPrnth);
+        let token = self.get_next()?;
+        match token.kind {
+            TokenKind::ClosePrnth => {
+                return Ok((name, args));
+            }
+            _ => {
+                self.input.put_back(token)?;
+            }
+        }
+
+        args.push(self.parse_rhs_impl(depth + 1)?);
+
+        while let Some(token) = self.input.next()? {
+            match token.kind {
+                TokenKind::Comma => {
+                    args.push(self.parse_rhs_impl(depth + 1)?);
+                }
+                TokenKind::ClosePrnth => {
+                    return Ok((name, args));
+                }
+                _ => {
+                    return Err(ParseError {
+                        pos: token.pos,
+                        cause: ParseErrorCause::UnexpectedToken(token).into(),
+                    })
+                }
+            }
+        }
+
+        Ok((name, args))
     }
 
     fn parse_index_op(&mut self, depth: usize) -> Result<IndexOp> {

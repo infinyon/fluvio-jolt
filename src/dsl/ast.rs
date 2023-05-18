@@ -10,6 +10,7 @@ pub enum Lhs {
     /// Bunch of star expressions separated by pipes
     Pipes(Vec<Stars>),
     Literal(String),
+    FnCall(String, Vec<Rhs>),
 }
 
 impl Lhs {
@@ -38,6 +39,7 @@ pub enum RhsEntry {
     Amp(usize, usize),
     At(usize, Box<Rhs>),
     Key(String),
+    FnCall(String, Vec<Rhs>),
 }
 
 #[derive(Debug, PartialEq, Clone, Eq)]
