@@ -11,17 +11,20 @@ Lhs: AtExpr |
         DollarSignExpr |
         SquareExpr |
         AmpExpr |
-        Pipes;
+        Pipes |
+        FnCall;
 
 Rhs: ('[' IndexOp? ']' | RhsEntry*) RhsPart*;
 RhsPart: '[' IndexOp? ']' | '.' RhsEntry*;
 RhsEntry: AmpExpr |
             AtExpr |
-            Key;
+            Key |
+            FnCall;
 IndexOp: AmpExpr
             | Number
             | AtExpr;
 
+FnCall: '=' Key '(' Rhs? (',' Rhs)* ')';
 AtExpr: '@' AtTuple?;
 AtTuple: '(' Index ',' RHS ')' | '(' Rhs ')';
 DollarSignExpr: '$' NumTuple?;
@@ -43,7 +46,7 @@ Number: '1-9' '0-9'+;
 
 ## Escape sequences
 
-`@`, `$`, `#`, `&`, `[`, `]`, `|`, `.`, `,`, `(`, `)`, `*`, `\` can be escaped using a `\`.
+`@`, `$`, `#`, `&`, `[`, `]`, `|`, `.`, `,`, `(`, `)`, `*`, `\`, `=` can be escaped using a `\`.
 
 ## Infallible/fallible lhs expressions and execution order
 
@@ -59,7 +62,8 @@ So if the spec is:
     "$": "a.b.c",
     "hello": "world",
     "@": "q.w.e",
-    "&": "b"
+    "&": "b",
+    "=my_regex_function(arg0,arg1)": "c"
 }
 ```
 The `$` will be executed first and then the `@` will be executed.
@@ -67,6 +71,7 @@ The `$` will be executed first and then the `@` will be executed.
 Then for each key in the input:
 - First `hello` will be executed.
 - If `hello` didn't match, the `&` will be executed.
+- If the `&` didn't match, the key with the function call (`my_regex_function`) will be executed. 
 
 ## Behavior
 
