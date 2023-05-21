@@ -208,6 +208,22 @@ fn test_parse_lhs_dollar_sign_full() {
 }
 
 #[test]
+fn test_parse_lhs_fn() {
+    LhsTestCase {
+        expr: "=my_regex_func123(a,b,c)",
+        expected: Lhs::FnCall(
+            "my_regex_func123".into(),
+            vec![
+                Rhs(vec![RhsPart::Key(RhsEntry::Key("a".into()))]),
+                Rhs(vec![RhsPart::Key(RhsEntry::Key("b".into()))]),
+                Rhs(vec![RhsPart::Key(RhsEntry::Key("c".into()))]),
+            ],
+        ),
+    }
+    .run();
+}
+
+#[test]
 fn test_parse_lhs_misc() {
     LhsTestCase {
         expr: "@(2,clone&(1,1)_GCPerProIdenInfoPhyInfoStreet)",
@@ -564,6 +580,35 @@ fn test_parse_rhs_idx_at() {
             RhsPart::Key(RhsEntry::Key("hello".into())),
             RhsPart::Index(IndexOp::At(2, "world".into())),
         ]),
+    }
+    .run();
+}
+
+#[test]
+fn test_parse_rhs_fn() {
+    let concat_call = (
+        "concat".into(),
+        vec![
+            Rhs(vec![RhsPart::Key(RhsEntry::Key("a".into()))]),
+            Rhs(vec![RhsPart::Key(RhsEntry::Key("b".into()))]),
+            Rhs(vec![RhsPart::Key(RhsEntry::Key("c".into()))]),
+        ],
+    );
+
+    let digest_call = (
+        "digest".into(),
+        vec![Rhs(vec![RhsPart::Key(RhsEntry::FnCall(
+            concat_call.0,
+            concat_call.1,
+        ))])],
+    );
+
+    RhsTestCase {
+        expr: "=digest(=concat(a,b,c))",
+        expected: Rhs(vec![RhsPart::Key(RhsEntry::FnCall(
+            digest_call.0,
+            digest_call.1,
+        ))]),
     }
     .run();
 }

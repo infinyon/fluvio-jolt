@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_json::Value as JsonValue;
 use crate::{
     Result,
-    fn_call::{Processor, Matcher, CallableFn, CallableFnResult},
+    fn_call::{CallableFn, CallableFnResult},
     Error,
 };
 
@@ -43,24 +43,24 @@ impl Context {
         f(args).map_err(Error::FunctionError)
     }
 
-    pub(crate) fn call_fn_get_matcher<S: AsRef<str>>(
+    pub(crate) fn call_fn_get_matches<S: AsRef<str>>(
         &self,
         key: S,
         args: &[JsonValue],
-    ) -> Result<Matcher> {
+    ) -> Result<Option<Vec<String>>> {
         match self.call_fn(key.as_ref(), args)? {
-            CallableFnResult::Matcher(m) => Ok(m),
+            CallableFnResult::Matches(m) => Ok(m),
             _ => Err(Error::FunctionResultUnexpected(key.as_ref().to_owned())),
         }
     }
 
-    pub(crate) fn call_fn_get_processor<S: AsRef<str>>(
+    pub(crate) fn call_fn_get_value<S: AsRef<str>>(
         &self,
         key: S,
         args: &[JsonValue],
-    ) -> Result<Processor> {
+    ) -> Result<JsonValue> {
         match self.call_fn(key.as_ref(), args)? {
-            CallableFnResult::Processor(p) => Ok(p),
+            CallableFnResult::Value(v) => Ok(v),
             _ => Err(Error::FunctionResultUnexpected(key.as_ref().to_owned())),
         }
     }

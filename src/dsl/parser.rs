@@ -162,7 +162,7 @@ impl<'input> Parser<'input> {
 
         let mut args = Vec::new();
 
-        self.assert_next(TokenKind::OpenPrnth);
+        self.assert_next(TokenKind::OpenPrnth)?;
         let token = self.get_next()?;
         match token.kind {
             TokenKind::ClosePrnth => {

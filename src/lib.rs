@@ -24,7 +24,7 @@ use crate::pointer::JsonPointer;
 
 pub use error::{Error, Result};
 
-pub use fn_call::{CallableFn, CallableFnResult, Matcher, Processor};
+pub use fn_call::{CallableFn, CallableFnResult};
 pub use transform::Context;
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
