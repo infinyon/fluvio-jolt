@@ -4,7 +4,7 @@ use serde_json::Value;
 use serde::Deserialize;
 
 use crate::dsl::{Object, REntry, InfallibleLhs, Rhs, RhsEntry, IndexOp, RhsPart};
-use crate::transform::Transform;
+use crate::transform::{Transform, Context};
 use crate::{Error, Result};
 
 const ROOT_KEY: &str = "root";
@@ -13,7 +13,7 @@ const ROOT_KEY: &str = "root";
 pub struct Shift(Object);
 
 impl Transform for Shift {
-    fn apply(&self, val: &Value) -> Result<Value> {
+    fn apply(&self, _ctx: &Context, val: &Value) -> Result<Value> {
         let mut path = vec![(vec![Cow::Borrowed(ROOT_KEY)], val)];
 
         let mut out = Value::Null;
@@ -255,6 +255,7 @@ fn rhs_entry_to_cow<'ctx, 'input: 'ctx>(
             }
         }
         RhsEntry::Key(key) => Cow::Borrowed(key.as_str()),
+        RhsEntry::FnCall(_, _) => todo!(),
     };
 
     Ok(cow)

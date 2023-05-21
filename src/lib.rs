@@ -5,6 +5,7 @@ mod remove;
 mod pointer;
 mod transform;
 mod error;
+mod fn_call;
 #[cfg(not(feature = "fuzz"))]
 mod dsl;
 #[cfg(feature = "fuzz")]
@@ -22,6 +23,9 @@ pub use spec::TransformSpec;
 use crate::pointer::JsonPointer;
 
 pub use error::{Error, Result};
+
+pub use fn_call::{CallableFn, CallableFnResult, Matcher, Processor};
+pub use transform::Context;
 
 /// Perform JSON to JSON transformation where the "specification" is a JSON.
 ///
@@ -79,7 +83,7 @@ pub fn transform(input: Value, spec: &TransformSpec) -> Result<Value> {
     let mut result = input;
     for entry in spec.entries() {
         match entry {
-            SpecEntry::Shift(shift) => result = shift.apply(&result)?,
+            SpecEntry::Shift(shift) => result = shift.apply(&Default::default(), &result)?,
             SpecEntry::Default(spec) => result = default(result, spec),
             SpecEntry::Remove(spec) => result = remove(result, spec),
         }

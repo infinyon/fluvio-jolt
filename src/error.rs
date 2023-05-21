@@ -1,5 +1,6 @@
 use thiserror::Error as ThisError;
 use std::{result::Result as StdResult, num::ParseIntError};
+use std::error::Error as StdError;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -29,6 +30,14 @@ pub enum Error {
     ShiftEmptyPath,
     #[error("Path is not empty after executing shift. THIS SHOULD NEVER HAPPEN.")]
     ShiftPathNotEmpty,
+    #[error("function \"{0}\" is already registered to context.")]
+    FunctionAlreadyRegistered(String),
+    #[error("function \"{0}\" not found in context.")]
+    FunctionNotFound(String),
+    #[error("function call failed:\n{0}")]
+    FunctionError(Box<dyn StdError>),
+    #[error("function \"{0}\" returned unexpected result.")]
+    FunctionResultUnexpected(String),
 }
 
 pub type Result<T> = StdResult<T, Error>;
