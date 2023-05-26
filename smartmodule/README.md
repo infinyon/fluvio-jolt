@@ -16,7 +16,7 @@ parameters:
   database-url: '{DB_CONNECTION_STRING}'
   rust_log: 'sql_sink=INFO,sqlx=WARN'
 transforms:
-  - uses: infinyon/jolt@0.1.0
+  - uses: infinyon/jolt@0.3.0
     with:
       spec:
         - operation: shift

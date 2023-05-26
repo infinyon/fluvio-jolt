@@ -1,7 +1,7 @@
 ---
 package_format_version: "0.1"
 name: jolt
-version: 0.2.0
+version: 0.3.0
 group: infinyon
 description: JSON to JSON transformation Smartmodule
 license: e.g. Apache2

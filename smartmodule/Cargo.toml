@@ -11,7 +11,7 @@ publish = false
 crate-type = ['cdylib', 'rlib']
 
 [dependencies]
-fluvio-jolt = { version = "0.2"}
+fluvio-jolt = { version = "0.3"}
 fluvio-smartmodule = { version = "0.3" }
 
 once_cell = { version = "1", default-features = false }
