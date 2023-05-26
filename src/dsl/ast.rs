@@ -5,8 +5,9 @@ use super::ParseError;
 pub enum Lhs {
     DollarSign(usize, usize),
     Amp(usize, usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Square(String),
+    /// Bunch of star expressions separated by pipes
     Pipes(Vec<Stars>),
     Literal(String),
 }
@@ -17,6 +18,8 @@ impl Lhs {
     }
 }
 
+/// Bunch of literals separated by stars
+/// "*" is represented as vec!["", ""]
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct Stars(pub Vec<String>);
 
@@ -33,16 +36,15 @@ pub enum RhsPart {
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum RhsEntry {
     Amp(usize, usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Key(String),
 }
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum IndexOp {
-    Square(usize),
     Amp(usize, usize),
     Literal(usize),
-    At(Option<(usize, Box<Rhs>)>),
+    At(usize, Box<Rhs>),
     Empty,
 }
 

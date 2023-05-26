@@ -16,7 +16,7 @@
       "operation": "shift",
       "spec": {
         "name": "__data.name",
-        "*": "__data.&0"
+        "*": "__data.&"
       }
     }
   ],

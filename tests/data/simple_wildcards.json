@@ -12,7 +12,7 @@
     {
       "operation": "shift",
       "spec": {
-        "*": "__data.&0"
+        "*": "__data.&"
       }
     }
   ],

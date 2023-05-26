@@ -1,0 +1,33 @@
+{
+    "input": {
+        "clients" : {
+            "Acme" : {
+                "clientId": "Acme",
+                "index" : 1
+            },
+            "Axe" : {
+                "clientId": "AXE",
+                "index" : 0
+            },
+            "PhoVan" : {
+                "clientId": "pho",
+
+                // the idea here is that the index is a String, but is coercible to numeric
+                "index" : "3"
+            }
+        }
+    },
+
+    "spec": {
+        "clients" : {
+            "*": {
+                // test the abilyt to lookup the numeric index using a @ / Transpose operator, aka [@(1,index)]
+                "clientId": "clientIdArray[@(1,index)]"
+            }
+        }
+    },
+
+    "expected": {
+        "clientIdArray" : [ "AXE", "Acme", null, "pho" ]
+    }
+}

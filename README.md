@@ -38,7 +38,7 @@ Port of Java [Jolt](https://github.com/bazaarvoice/jolt/blob/master/jolt-core/sr
 Add `fluvio-jolt` crate to your `Cargo.toml` file:
 ```toml
 [dependencies]
-fluvio-jolt = { version = "0.1"}
+fluvio-jolt = { version = "0.3"}
 ```
 
 Then, for example, if you want to repack your JSON record, you can do the following:
@@ -84,6 +84,8 @@ assert_eq!(output, json!({
 1. `shift`: copy data from the input tree and put it the output tree
 2. `default`: apply default values to the tree
 3. `remove`: remove data from the tree
+
+See `SPEC.md` for more info on specifics of execution order and DSL grammar.
 
 ## Specification
 
@@ -148,12 +150,21 @@ would produce the following output JSON:
     }
 }
 </pre>
-#### Wildcards
+
+### Wildcards
 The `shift` specification on the keys level supports wildcards and conditions:  
     1. `*` - match everything  
     2. `name1|name2|nameN` - match any of the specified names
 
-`&` lookup allows referencing the values captured by the `*` or `|`.  
+#### `&` Wildcard
+`&` lookup allows referencing the values captured by the `*` or `|`.
+
+`&(x,y)` means go up the path x levels and get the yth match from that level.
+
+0th match is always the entire input they and the rest are the specific things the `*`s matched.
+
+`&` == `&(0)` == `&(0,0)` and `&(x)` == `&(x,0)` 
+
 It allows for specs to be more compact. For example, for this input:
  <pre>
 {
@@ -187,7 +198,7 @@ the spec with wildcards would be:
 If you want only `id` and `name` in the output, the spec is:
 <pre>
 {
-    "id|name": "data.&0"
+    "id|name": "data.&(0)"
 }
 </pre>
 
@@ -197,7 +208,7 @@ If you want only `id` and `name` in the output, the spec is:
 {
     "foo": {
         "bar" : {
-            "baz": "new_location.&0.&1.&2" // &0 = baz, &1 = bar, &2 = foo
+            "baz": "new_location.&(0).&(1).&(2)" // &(0) = baz, &(1) = bar, &(2) = foo
             }
         }
     }
@@ -225,6 +236,22 @@ will produce:
     }
 }
 </pre>
+
+#### `$` Wildcard
+
+`$` wildcard allows accessing matched keys from the path and use them on the right hand side.
+
+See tests in `tests/java/resources/shift` for usage examples.
+
+See [java library docs here](https://github.com/bazaarvoice/jolt/blob/master/jolt-core/src/main/java/com/bazaarvoice/jolt/Shiftr.java).
+
+#### `@` Wildcard
+
+`@` wildcard allows accessing values of matched keys from the path and use them on the right hand side.
+
+See tests in `tests/java/resources/shift` for usage examples.
+
+See [java library docs here](https://github.com/bazaarvoice/jolt/blob/master/jolt-core/src/main/java/com/bazaarvoice/jolt/Shiftr.java).
 
 ### `Default` operation
 Applies default values if the value is not present in the input JSON.

@@ -48,6 +48,12 @@ fn do_test(name: &str) {
     //when
     let result = fluvio_jolt::transform(input, &spec).unwrap();
 
-    //then
-    assert_eq!(result, expected, "failed assertion for test `{}`", name);
+    if result != expected {
+        panic!(
+            "failed assertion for test `{}`\nexpected:{}\ngot:{}",
+            name,
+            serde_json::to_string_pretty(&expected).unwrap(),
+            serde_json::to_string_pretty(&result).unwrap()
+        )
+    }
 }
