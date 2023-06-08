@@ -4,74 +4,80 @@ The transformation is defined in the configuration of the SmartModule. It is set
 and is re-used in the processing.
 
 ## Usage
-Typically (but not required), Jolt SmartModule is used in chain with other smartmodules to enrich or reduce the data in records.
-Here is an example of SQL connector configuration with a chain of two smartmodules:
+This smartmodule can be used in transforms on a connector like so:
 ```yaml
-name: fluvio-sql-connector
-type: sql-sink
-version: latest
-topic: mqtt-topic
-create-topic: true
-parameters:
-  database-url: '{DB_CONNECTION_STRING}'
-  rust_log: 'sql_sink=INFO,sqlx=WARN'
 transforms:
-  - uses: infinyon/jolt@0.3.0
-    with:
-      spec:
-        - operation: shift
-          spec:
-            payload:
-              device: "device"       #everything under '$.payload.device.*' goes to '$.device.*'
-        - operation: default
-          spec:
-            device:
-              type: "mobile"         #if not present, adds '$device.type' = 'mobile'
-  - uses: infinyon/json-sql@0.1.0
-    with:
-      mapping:
-        table: "topic_message"
-        map-columns:
-          "device_id":
-            json-key: "device.device_id"
-            value:
-              type: "int"
-              default: "0"
-              required: true
-          "record":
-            json-key: "$"
-            value:
-              type: "jsonb"
-              required: true
+ - uses: infinyon/jolt@0.3.0
+   with:
+     spec:
+        operation: shift
+        spec:
+          items:
+            "*":
+              "@(guid.value)": data[&(1)].guid
+              "*":
+                "$": data[&(2)].keys[]
 ```
-
-In this example we have a chain with two smartmodules:  
-    1. `jolt` - changes the structure of the JSON record.  
-    2. `json-sql` - generates a SQL record from JSON record resulted from the previous step.
-
-The `jolt` step removes from the incoming records everything except `$.payload.device` objects and moves this object up to
-the root level object. After that, it adds `$.device.type` field with default value `mobile`, if not present.
 
 ### Jolt SmartModule transformation example
 For the above configuration the `jolt` will process the record:
 ```json
 {
-  "mqtt_topic": "ag-mqtt-topic",
-  "payload": {
-    "device": {
-      "device_id": 0,
-      "name": "device0"
+  "description": "top description",
+  "items": [
+    {
+      "description": "inner description 1",
+      "guid": {
+        "permalink": true,
+        "value": "https://example.com/link1-1"
+      },
+      "link": "https://example.com/link1",
+      "pub_date": "Tue, 18 Apr 2023 14:59:04 GMT",
+      "title": "Title 1"
+    },
+    {
+      "description": "inner description 2",
+      "guid": {
+        "permalink": true,
+        "value": "https://example.com/link2-1"
+      },
+      "link": "https://example.com/link2",
+      "pub_date": "Tue, 19 Apr 2023 14:20:04 GMT",
+      "title": "Title 2"
     }
-  }
+  ],
+  "last_build_date": "Tue, 18 Apr 2023 15:00:01 GMT",
+  "link": "https://example.com/top-link",
+  "namespaces": {
+    "blogChannel": "http://example.com/blogChannelModule"
+  },
+  "title": "Blog-Recent Entries"
 }
 ```
 into:
 ```json
 {
-  "device": {
-    "device_id": 0,
-    "name": "device0",
-    "type": "mobile"
-  }
+  "data": [
+    {
+      "guid": "https://example.com/link1-1",
+      "keys": [
+        "description",
+        "guid",
+        "link",
+        "pub_date",
+        "title"
+      ]
+    },
+    {
+      "guid": "https://example.com/link2-1",
+      "keys": [
+        "description",
+        "guid",
+        "link",
+        "pub_date",
+        "title"
+      ]
+    }
+  ]
 }
 ```
