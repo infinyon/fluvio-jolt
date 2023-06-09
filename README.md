@@ -8,7 +8,7 @@
 <div align="center">
    <!-- CI status -->
   <a href="https://github.com/infinyon/fluvio-jolt/actions">
-    <img src="https://github.com/infinyon/flv-tls-proxy/workflows/CI/badge.svg"
+    <img src="https://github.com/infinyon/fluvio-jolt/workflows/CI/badge.svg"
       alt="CI Status" />
   </a>
   <!-- Crates version -->
