@@ -1,0 +1,20 @@
+[package]
+name = "jolt"
+version = "0.0.0"
+authors = ["Fluvio Contributors <team@fluvio.io>"]
+description = "JSON to JSON transformation SmartModule"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ['cdylib', 'rlib']
+
+[dependencies]
+fluvio-jolt = { version = "0.3"}
+fluvio-smartmodule = { version = "0.3" }
+
+once_cell = { version = "1", default-features = false }
+serde = { version = "1", default-features = false, features = ["derive"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+eyre = { version = "0.6", default-features = false }
