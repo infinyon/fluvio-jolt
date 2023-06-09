@@ -1,0 +1,29 @@
+[package]
+name = "fluvio-jolt"
+version = "0.3.0"
+edition = "2021"
+authors = ["Fluvio Contributors <team@fluvio.io>"]
+description = "Fluvio JSON to JSON transformation library"
+repository = "https://github.com/infinyon/fluvio-jolt"
+license = "Apache-2.0"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+crate-type = ['cdylib', 'rlib']
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = {version = "1", features = ["preserve_order"]}
+thiserror = "1"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[features]
+fuzz = []
