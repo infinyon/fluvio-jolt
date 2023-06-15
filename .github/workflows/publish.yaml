@@ -16,7 +16,7 @@ on:
 
 jobs:
   publish:
-    uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@publish-smartmodules
+    uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
     with:
       package-name: jolt
       branch: ${{ github.event.inputs.branch }}
