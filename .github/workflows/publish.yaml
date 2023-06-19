@@ -1,0 +1,25 @@
+name: Publish Hub
+
+permissions: read-all
+
+on:
+  push:
+    tags:        
+      - v*
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "The branch, tag or SHA to checkout"
+        required: true
+        type: string
+        default: "main"
+
+jobs:
+  publish:
+    uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
+    with:
+      package-name: jolt
+      branch: ${{ github.event.inputs.branch }}
+      fail-fast: false
+      target_prod: true
+    secrets: inherit
