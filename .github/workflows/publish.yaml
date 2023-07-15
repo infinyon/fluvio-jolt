@@ -52,7 +52,6 @@ jobs:
     needs: build
     uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
     with:
-      package-name: jolt
       branch: ${{ github.event.inputs.branch }}
       fail-fast: false
       target_prod: ${{ github.event.inputs.target_prod }}
