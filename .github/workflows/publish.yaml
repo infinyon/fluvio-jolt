@@ -55,7 +55,7 @@ jobs:
     uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
     with:
       fail-fast: false
-      target_prod: ${{ github.event.inputs.target_prod }}
+      target_prod: ${{ inputs.target_prod }}
       artifact-name: smartmodule-artifact
       ipkg-file-name: jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
     secrets: inherit
