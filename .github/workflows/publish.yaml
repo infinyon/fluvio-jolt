@@ -14,6 +14,11 @@ on:
         description: "The version of the smartmodule, should be same as in the SmartModule.toml"
         required: true
         type: string
+      target_prod:
+        description: "Target the prod hub"
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -41,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: smartmodule-artifact
-          path: smartmodule/.hub/jolt-${{ inputs.smartmodule-version }}.ipkg
+          path: smartmodule/.hub/jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
   publish:
     needs: build
     uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
@@ -49,7 +54,7 @@ jobs:
       package-name: jolt
       branch: ${{ github.event.inputs.branch }}
       fail-fast: false
-      target_prod: true
+      target_prod: ${{ github.event.inputs.target_prod }}
       artifact-name: smartmodule-artifact
-      ipkg-file-name: jolt-${{ inputs.smartmodule-version }}.ipkg
+      ipkg-file-name: jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
     secrets: inherit
