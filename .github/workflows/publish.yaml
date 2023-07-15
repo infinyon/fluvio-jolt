@@ -3,9 +3,6 @@ name: Publish Hub
 permissions: read-all
 
 on:
-  push:
-    tags:        
-      - v*
   workflow_dispatch:
     inputs:
       branch:
@@ -13,13 +10,51 @@ on:
         required: true
         type: string
         default: "main"
+      smartmodule-version:
+        description: "The version of the smartmodule, should be same as in the SmartModule.toml"
+        required: true
+        type: string
+      target_prod:
+        description: "Target the prod hub"
+        required: true
+        type: boolean
+        default: false
 
 jobs:
+  build:
+    env:
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+    steps:
+      - name: Install Fluvio
+        run: |
+          curl -fsS https://hub.infinyon.cloud/install/install.sh | bash
+          echo "$HOME/.fluvio/bin" >> $GITHUB_PATH
+      - name: Install Fluvio SMDK
+        run: fluvio install smdk
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: "false"
+          cache-on-failure: "true"
+      - name: Build
+        run: smdk build -p jolt
+      - name: Pack
+        run: smdk publish -p jolt --pack
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: smartmodule-artifact
+          path: smartmodule/.hub/jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
   publish:
+    needs: build
     uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
     with:
       package-name: jolt
       branch: ${{ github.event.inputs.branch }}
       fail-fast: false
-      target_prod: true
+      target_prod: ${{ github.event.inputs.target_prod }}
+      artifact-name: smartmodule-artifact
+      ipkg-file-name: jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
     secrets: inherit
