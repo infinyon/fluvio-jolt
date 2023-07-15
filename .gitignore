@@ -3,4 +3,4 @@ target
 .DS_Store
 
 # ignore smartmodule hub folder
-hub
+.hub
