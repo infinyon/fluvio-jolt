@@ -7,7 +7,7 @@ and is re-used in the processing.
 This smartmodule can be used in transforms on a connector like so:
 ```yaml
 transforms:
- - uses: infinyon/jolt@0.3.0
+ - uses: infinyon/jolt@0.4.1
    with:
      spec:
         operation: shift
