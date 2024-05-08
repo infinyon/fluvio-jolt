@@ -1,6 +1,6 @@
 [package]
 name = "fluvio-jolt"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Fluvio Contributors <team@fluvio.io>"]
 description = "Fluvio JSON to JSON transformation library"
