@@ -4,7 +4,8 @@ use eyre::ContextCompat;
 use fluvio_jolt::TransformSpec;
 use fluvio_smartmodule::dataplane::smartmodule::SmartModuleInitError;
 use fluvio_smartmodule::{
-    dataplane::smartmodule::SmartModuleExtraParams, smartmodule, Record, RecordData, Result,
+    dataplane::smartmodule::SmartModuleExtraParams, smartmodule, SmartModuleRecord, RecordData,
+    Result,
 };
 
 static SPEC: OnceCell<TransformSpec> = OnceCell::new();
@@ -32,7 +33,7 @@ fn init(params: SmartModuleExtraParams) -> Result<()> {
 }
 
 #[smartmodule(map)]
-pub fn map(record: &Record) -> Result<(Option<RecordData>, RecordData)> {
+pub fn map(record: &SmartModuleRecord) -> Result<(Option<RecordData>, RecordData)> {
     let spec = SPEC.get().wrap_err("jolt spec is not initialized")?;
 
     let key = record.key.clone();

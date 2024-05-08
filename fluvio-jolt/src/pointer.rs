@@ -9,7 +9,7 @@ pub(crate) struct JsonPointer {
 
 impl JsonPointer {
     pub(crate) fn new(mut entries: Vec<String>) -> Self {
-        if entries.get(0).filter(|p| (**p).eq("")).is_none() {
+        if entries.first().filter(|p| (**p).eq("")).is_none() {
             entries.insert(0, String::new());
         }
         Self { entries }
@@ -47,7 +47,7 @@ impl JsonPointer {
         self.entries.join("/")
     }
 
-    /// Finds all path elements with the format '&N' and replaces them by values from  
+    /// Finds all path elements with the format '&N' and replaces them by values from
     /// given bindings where N is the index of bindings slice.
     pub(crate) fn substitute_vars<T: ToString>(&mut self, bindings: &[T]) {
         for entry in self.entries.iter_mut() {
