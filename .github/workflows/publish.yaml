@@ -26,30 +26,36 @@ jobs:
     env:
       CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
     steps:
-      - name: Install Fluvio
-        run: |
-          curl -fsS https://hub.infinyon.cloud/install/install.sh | bash
-          echo "$HOME/.fluvio/bin" >> $GITHUB_PATH
+      - name: Setup Fluvio
+        uses: infinyon/fluvio/.github/actions/setup-fluvio@master
+
       - name: Install Fluvio SMDK
         run: fluvio install smdk
+
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.branch }}
-      - name: Setup wasm32-unknown-unknown target 
-        run: rustup target add wasm32-unknown-unknown
+
+      - name: Setup wasm32-wasi target
+        run: rustup target add wasm32-wasi
+
       - uses: Swatinem/rust-cache@v2
         with:
           cache-targets: "false"
           cache-on-failure: "true"
+
       - name: Build
         run: smdk build -p jolt
+
       - name: Pack
         run: smdk publish -p jolt --pack
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: smartmodule-artifact
           path: smartmodule/.hub/jolt-${{ github.event.inputs.smartmodule-version }}.ipkg
+
   publish:
     needs: build
     uses: infinyon/fluvio/.github/workflows/smartmodule-publish.yml@master
